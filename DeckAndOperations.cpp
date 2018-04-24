@@ -112,3 +112,63 @@ int DeckAndOperations::randomNumber(int min, int max){
     else 
         return 0;
 }
+
+void DeckAndOperations::encrypt_elGamal(mpz_t p, mpz_t g, mpz_t r_a, mpz_t x_a, mpz_t m){
+  mpz_t c_1;
+  mpz_t c_2;
+  mpz_t g_to_x_to_r;
+  mpz_init(g_to_x_to_r);
+  mpz_init(c_1);
+  mpz_init(c_2);
+  
+  mpz_powm(c_1,g,r_a,p);
+  mpz_powm(g_to_x_to_r,g,x_a,p);
+  mpz_powm(g_to_x_to_r,g_to_x_to_r,r_a,p);
+//  mpz_mod(c_1,c_1,p);
+    
+  
+//  mpz_mul(r_times_x,r_a,x_a);
+//  mpz_powm(c_2,g,r_times_x,p);
+  mpz_mul(c_2,g_to_x_to_r,m);
+  mpz_mod(c_2,c_2,p);
+  
+    gmp_printf ("%s is %Zd\n", "c_1", c_1);
+    gmp_printf ("%s is %Zd\n", "c_2", c_2);
+  decrypt_elGamal(c_1,c_2,r_a,x_a,p,g);
+
+}
+
+
+void DeckAndOperations::decrypt_elGamal(mpz_t c_1, mpz_t c_2, mpz_t r_a, mpz_t x_a, mpz_t p, mpz_t q){
+
+  mpz_t g_to_x_to_r;
+  mpz_init(g_to_x_to_r);
+    
+  mpz_t c_to_x_inverse;
+  mpz_init(c_to_x_inverse);
+//  
+  mpz_powm(c_to_x_inverse,c_1,x_a,p);
+  mpz_invert(c_to_x_inverse,c_to_x_inverse,p);
+
+  
+  mpz_t message;
+  mpz_init(message);
+ 
+  
+  mpz_mul(message,c_2,c_to_x_inverse);
+  mpz_mod(message,message,p);
+  gmp_printf ("%s is %Zd\n", "message", message);
+    cout << "\n";
+
+
+//  
+//  mpz_mul(r_times_x,r_a,x_a);
+//  mpz_powm(c_2,g,r_times_x,p);
+//  mpz_mul(c_2,c_2,m);
+//  mpz_mod(c_2,c_2,p);
+  
+//  gmp_printf ("%s is %Zd\n", "c_1", c_1);
+  //gmp_printf ("%s is %Zd\n", "c_2", c_2);
+
+
+}

@@ -28,6 +28,8 @@ public:
     DeckAndOperations();
     void generateCardsAndPutIntoDeck();
     void shuffleDeck();
+    void encrypt_elGamal(mpz_t,mpz_t,mpz_t,mpz_t,mpz_t);
+    void decrypt_elGamal(mpz_t,mpz_t,mpz_t,mpz_t,mpz_t,mpz_t);
     vector<CardClass*> getDeck();
     DeckAndOperations(const DeckAndOperations& orig);
     virtual ~DeckAndOperations();
