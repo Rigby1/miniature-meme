@@ -13,15 +13,14 @@
 
 #include "CardClass.h"
 
-CardClass::CardClass() {
+CardClass::CardClass() { // @suppress("Class members should be properly initialized")
 }
 
-CardClass::CardClass(const CardClass& orig) {
+CardClass::CardClass(const CardClass& orig) { // @suppress("Class members should be properly initialized")
 }
 
-CardClass::CardClass(mpz_t newId, int newType, int newNumber, string newRepresentation) {
-    mpz_init (id);
-    mpz_set(id, newId);
+CardClass::CardClass(mpz_class newId, int newType, int newNumber, string newRepresentation) {
+    id = newId;
     type = newType;
     number = newNumber;
     representation = newRepresentation;   

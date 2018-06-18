@@ -14,7 +14,7 @@
 #ifndef CARDCLASS_H
 #define CARDCLASS_H
 
-#include <gmp.h>
+#include <gmpxx.h>
 #include <string>
 
 using namespace std;
@@ -22,14 +22,14 @@ using namespace std;
 class CardClass {
 public:
     CardClass();
-    CardClass(mpz_t, int, int, string);
+    CardClass(mpz_class, int, int, string);
+    CardClass(mpz_class, mpz_class, int, int, string);
     CardClass(const CardClass& orig);
     virtual ~CardClass();
-    mpz_t id;
+    mpz_class id;
     int type;
     int number;
     string representation;
-
 private:
 
 };
