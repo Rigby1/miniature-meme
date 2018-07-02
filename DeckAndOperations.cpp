@@ -38,8 +38,7 @@ DeckAndOperations::DeckAndOperations(mpz_class p, mpz_class g) {
 	generateSecretKey(&pk);
 }
 
-DeckAndOperations::DeckAndOperations(const DeckAndOperations& orig) {
-}
+
 
 DeckAndOperations::~DeckAndOperations() {
 }
@@ -51,7 +50,7 @@ void DeckAndOperations::generateCardsAndPutIntoDeck(){
 	int type;
 	int number;
 	string representation;
-	for(int i=0; i<5 ; i++){
+	for(int i=0; i<52 ; i++){
 		type = i / 13;
 		if(i % 13 == 0)
 			number = 13;
@@ -68,34 +67,20 @@ void DeckAndOperations::generateCardsAndPutIntoDeck(){
 
 
 		mpz_nextprime(aPrime.get_mpz_t(), aPrime.get_mpz_t());
-		CardClass* card = new CardClass(aPrime, type, number, representation);
-		representation = "";
+		CipherText ct(aPrime);
+//		CardClass* card = new CardClass(aPrime, type, number, representation);
+//		representation = "";
 
 		totalCardCount++;
 		mpz_mul(cardsMultiplied,cardsMultiplied,aPrime.get_mpz_t());
-		deckVectorCardClass.push_back(card);
+		deckVector.push_back(ct);
 		//gmp_printf ("%s is an mpz %Zd\n", "here", aPrime);
 	}
 }
 
-vector<CardClass*> DeckAndOperations::getDeck(){
-	return deckVectorCardClass;
+vector<CipherText> DeckAndOperations::getDeck(){
+	return deckVector;
 }
-
-void DeckAndOperations::shuffleDeck(){
-
-	vector<CardClass*> newDeck;
-
-	while(deckVectorCardClass.size() > 0){
-		int generatedRandomValue = randomNumber(0,deckVectorCardClass.size());
-		newDeck.push_back(deckVectorCardClass.at(generatedRandomValue));
-		deckVectorCardClass.erase(deckVectorCardClass.begin()+generatedRandomValue);
-	}
-
-	deckVectorCardClass = newDeck;
-
-}
-
 
 
 size_t DeckAndOperations::randomNumber(size_t min, size_t max){
@@ -162,28 +147,12 @@ CipherText DeckAndOperations::finalize_unmask_elGamal(const Public_Key &pk, cons
 	return CipherText(unmasked * ct.c_2 % pk.p);
 }
 
-vector<CipherText> DeckAndOperations::mask_elGamal_masked_deck() {
-	for(auto i = maskedDeckVector.begin(); i != maskedDeckVector.end(); i++){
+vector<CipherText> DeckAndOperations::mask_elGamal_deck() {
+	for(auto i = deckVector.begin(); i != deckVector.end(); i++){
 		*i = mask_elGamal(pk, *i, NULL);
 	}
-	return maskedDeckVector;
+	return deckVector;
 }
-
-vector<CipherText> DeckAndOperations::mask_elGamal_deck() {
-    vector<CipherText> aTempVector;
-
-	for(auto i = deckVectorCardClass.begin(); i != deckVectorCardClass.end(); i++){
-		CipherText ct((*i)->id);
-		ct = mask_elGamal(pk, ct, NULL);
-		aTempVector.push_back(ct);
-	}
-	return aTempVector;
-}
-
-
-
-
-
 
 
 void DeckAndOperations::generatePublicKey(Public_Key *pk){

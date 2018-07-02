@@ -17,6 +17,7 @@
 #include <string>
 #include <map>
 #include <gmpxx.h>
+#include <algorithm>
 
 
 #include <boost/bind.hpp>
@@ -26,7 +27,6 @@
 
 #include "CardClass.h"
 #include "DeckAndOperations.h"
-#include "game_message.hpp"
 
 
 #include <random>
@@ -41,22 +41,6 @@ bool sharedSecretSent = false;
 bool isLeader = false;
 
 
-template<class Generator>
-void initMerssenneTwister(Generator &gen) {
-	size_t k = (Generator::word_size + 31) / 32;
-	size_t seeds = k * Generator::state_size;
-
-	std::random_device dev;
-	std::uniform_int_distribution<uint32_t> dist;
-
-	std::vector<uint32_t> v;
-	for (size_t i=0; i<seeds; i++) {
-		v.push_back(dist(dev));
-	}
-
-	std::seed_seq seq(v.begin(), v.end());
-	gen.seed(seq);
-}
 
 template <class T>
 void sendVector(tcp::socket &socket, const std::vector<T> &data) {
@@ -77,19 +61,6 @@ std::vector<T> receiveVector(tcp::socket &socket) {
 
 }
 
-//----------------------------------------------------------------------------
-typedef std::deque<game_message> game_message_queue;
-
-
-//----------------------------------------------------------------------
-
-
-
-
-
-
-
-//-----------------------------------------------------------------------------------------------------
 
 class game_session :
 		public boost::enable_shared_from_this<game_session>
@@ -116,8 +87,6 @@ private:
 	tcp::socket server_socket;
 	msg_t       server_readMsg;
 
-	game_message read_msg_;
-	game_message_queue write_msgs_;
 	DeckAndOperations *deck;
 
 public:
@@ -171,12 +140,17 @@ public:
 							boost::asio::placeholders::error));
 		}
 	}
+	string c1 = "1";
+	string c2 = "2";
+	vector<CipherText> maskedDeckVectorTemp;
+	bool unmaskInProgress = false;
 	void server_handle_readMsg(const boost::system::error_code& err) {
 		if (err) {
 			cout << "ERROR: readMsg" << std::endl;
 		} else {
-			cout << "Incoming message: " << server_readMsg.data  << "\n Size: " << server_readMsg.header.size << "\n Message type: "
-					<< server_readMsg.header.type << std::endl;
+
+			//			cout << "Incoming message: " << server_readMsg.data  << "\n Size: " << server_readMsg.header.size << "\n Message type: "
+			//					<< server_readMsg.header.type << std::endl;
 			if(server_readMsg.header.type == 2) {
 				if(readySent == false){
 					readySent = true;
@@ -214,13 +188,32 @@ public:
 			else if(server_readMsg.header.type == 100){
 				if(isLeader){
 					if(!sharedSecretSent){
-						deck->Shared_Secret_Key = server_readMsg.data;
+						deck->Shared_Public_Key = server_readMsg.data;
 						sharedSecretSent = true;
-						deliver(deck->Shared_Secret_Key.get_str(10),100);
-						cout << "SHARED SECRET KEY IS : " << deck->Shared_Secret_Key << std::endl;
+						deliver(deck->Shared_Public_Key.get_str(10),100);
+						cout << "PUBLIC SECRET KEY IS : " << deck->Shared_Public_Key << std::endl;
 					}
 					else {
 						deck->generateCardsAndPutIntoDeck();
+						vector<size_t> permutationVector;
+						deck->permutationClass = new PermutationClass(deck->deckVector.size());
+						deck->permutationShuffle(deck->deckVector, deck->permutationClass->map);
+						//we need to send permutated(shuffled) deck to others in order them to shuffle as well
+
+						vector<CipherText> cts= deck->mask_elGamal_deck();
+						for(auto i = cts.begin(); i != cts.end(); i++){
+							//							cout << "Sending c1: " << i->c_1 << "\nSending c2: " << i->c_2 << std::endl;
+							deliver(i->c_1.get_str(10),201);
+							deliver(i->c_2.get_str(10),202);
+						}
+						deliver("done sending",203);
+
+						//string msg_to_send = deck->convertCiphertTextsIntoString(cts);
+						//						deliver(msg_to_send,500);
+
+
+						//						ct = deck->mask_elGamal(deck->pk, ct, NULL);
+						//						cout << "c1: " << ct.c_1 << "c2: " << ct.c_2 << std::endl;
 					}
 				}else{
 					if(!sharedSecretSent){
@@ -230,12 +223,126 @@ public:
 						deliver(deck->contributeToSharedSecret(input).get_str(10),100);
 					}
 					else {
-						deck->Shared_Secret_Key = server_readMsg.data;
-						cout << "SHARED SECRET KEY IS : " << deck->Shared_Secret_Key << std::endl;
-						deliver(deck->Shared_Secret_Key.get_str(10),100);
+						deck->Shared_Public_Key = server_readMsg.data;
+						cout << "SHARED PUBLIC KEY IS : " << deck->Shared_Public_Key << std::endl;
+						deliver(deck->Shared_Public_Key.get_str(10),100);
 					}
 				}
 
+			}
+			else if(server_readMsg.header.type == 201){
+				c1 = server_readMsg.data;
+				//				cout << "Received c1 is : " <<  server_readMsg.data << std::endl;
+
+			}
+			else if(server_readMsg.header.type == 202){
+				c2 = server_readMsg.data;
+				//				cout << "Received c2 is : " <<  server_readMsg.data << std::endl;
+				mpz_class cOne(c1);
+				mpz_class cTwo(c2);
+				CipherText ct(cOne,cTwo);
+				maskedDeckVectorTemp.push_back(ct);   //now there is not any maskedDeckVector Anymore so that this should be written directly to deckVector
+			}
+			else if(server_readMsg.header.type == 203){
+				deck->deckVector = maskedDeckVectorTemp;
+				maskedDeckVectorTemp.clear();
+				if(!isLeader){
+					deck->permutationClass = new PermutationClass(deck->deckVector.size());
+					deck->permutationShuffle(deck->deckVector,deck->permutationClass->map);
+					vector<CipherText> cts= deck->mask_elGamal_deck();
+					for(auto i = cts.begin(); i != cts.end(); i++){
+						//						cout << "Sending c1: " << i->c_1 << "\nSending c2: " << i->c_2 << std::endl;
+						deliver(i->c_1.get_str(10),201);
+						deliver(i->c_2.get_str(10),202);
+					}
+					deliver("done sending",203);
+				}
+				else {
+					cout << "------------Received Shuffled and Masked Vector------------" << std::endl;
+					for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+						//						cout << "CT: " << *i << std::endl;
+						deliver(i->c_1.get_str(10),204);
+						deliver(i->c_2.get_str(10),205);
+					}
+					deliver("Masked Deck Vectors should be all same", 206);
+					// now we have player times masked and permutated deckvector in maskedDeckVector as a leader
+				}
+
+			}
+			else if(server_readMsg.header.type == 204){
+				c1 = server_readMsg.data;
+			}
+			else if(server_readMsg.header.type == 205){
+
+				c2 = server_readMsg.data;
+				mpz_class cOne(c1);
+				mpz_class cTwo(c2);
+				CipherText ct(cOne,cTwo);
+				maskedDeckVectorTemp.push_back(ct);
+
+			}
+			else if(server_readMsg.header.type == 206){
+				if(!isLeader){
+					deck->deckVector = maskedDeckVectorTemp;
+					maskedDeckVectorTemp.clear();
+					for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+						//						cout << "CT: " << *i << std::endl;
+						deliver(i->c_1.get_str(10),204);
+						deliver(i->c_2.get_str(10),205);
+					}
+					deliver("Masked Deck Vectors should be all same", 206);
+				}
+				else {	//LEADER STARTS NEXT PHASE OF THE GAME FROM HERE
+						//FOR NOW LEADER IS JUST UNMASKING
+					maskedDeckVectorTemp.clear();
+					//maskedDeckVector and maskedDeckVectorTemp should be exactly same
+					//the comparison should be done here
+					unmaskInProgress = true;
+					for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+						deliver(i->c_1.get_str(10),301);
+						deliver(i->c_2.get_str(10),302);
+					}
+					deliver("Masked Deck Vectors should be all same", 303);
+
+				}
+				for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+					cout << *i << std::endl;
+				}
+			}
+
+			else if(server_readMsg.header.type == 301){
+
+				c1 = server_readMsg.data;
+
+			}
+			else if(server_readMsg.header.type == 302){
+
+				c2 = server_readMsg.data;
+				mpz_class cOne(c1);
+				mpz_class cTwo(c2);
+				CipherText ct(cOne,cTwo);
+				maskedDeckVectorTemp.push_back(ct);
+
+			}
+			else if(server_readMsg.header.type == 303){
+				if(!unmaskInProgress) {
+					for(auto i = maskedDeckVectorTemp.begin(); i != maskedDeckVectorTemp.end(); i++){
+						CipherText citext = deck->unmask_elGamal(deck->pk,*i);
+						deliver(citext.c_1.get_str(10),301);
+						deliver(citext.c_2.get_str(10),302);
+					}
+					maskedDeckVectorTemp.clear();
+					deliver("sending completed for unmask",303);
+				}
+				else {
+					//deck->reversePermutationShuffleForEncryptedVector(deck->permutationClass);
+					cout << "----------------------After Unmask -----------------" << std::endl;
+					for(auto i = maskedDeckVectorTemp.begin(); i != maskedDeckVectorTemp.end(); i++){
+						CipherText citext = deck->finalize_unmask_elGamal(deck->pk,*i);
+						cout << citext << std::endl;
+					}
+					unmaskInProgress = false;
+				}
 			}
 			server_read_message();
 		}
@@ -278,7 +385,7 @@ public:
 			cout << "error connect " << err << std::endl;
 			client_schedule_connect();
 		} else {
-			cout << "game_session_left start() \n";
+			//			cout << "game_session_left start() \n";
 			client_connected = true;
 			client_startSending();
 		}
@@ -287,11 +394,18 @@ public:
 	 * wait = 1
 	 * ready = 2
 	 * start = 3
-	 * EncryptedSecret = 100
+	 * EncryptedPublicKey = 100
 	 * p = 101
 	 * g = 102
-	 * send deck to shuffle = 200
-	 *
+	 * send deck to shuffle c1 = 201
+	 * send deck to shuffle c2 = 202
+	 * whole vector was taken to shuffle = 203
+	 * send masked c1 to all peers to syncronize = 204
+	 * send masked c2 to  all peers to syncronize = 205
+	 * Completed all encrypted cards same all in each peer = 206
+	 * unmask operation c1 = 301
+	 * unmask operation c2 = 302
+	 * unmask operation finalize = 303
 	 */
 	void client_enqueueMessage(const std::string &s , uint32_t type) {
 		size_t qs = client_sendQueue.size();
@@ -332,7 +446,7 @@ public:
 		if (err) {
 			cout << "ERROR: sendMsg" << std::endl;
 		} else {
-			cout << "Sent Message!" << std::endl;
+			//			cout << "Sent Message!" << std::endl;
 			client_sendQueue.pop_front();
 			client_startSending();
 		}
@@ -344,7 +458,7 @@ public:
 
 	void deliver(const std::string& msg, uint32_t type)
 	{
-		cout << "game_session_left deliver() \n";
+		//		cout << "game_session_left deliver() \n";
 
 		io_service.post(boost::bind(&game_session::client_enqueueMessage, shared_from_this(), msg, type));
 
@@ -411,8 +525,65 @@ int main(int argc, char** argv) {
 
 			try	{
 				DeckAndOperations * deck  = new DeckAndOperations;
-				mpz_class encryptedSecret (deck->getEncryptedSecret());
-				new_session->deliver(encryptedSecret.get_str(10),100);
+				deck->generateCardsAndPutIntoDeck();
+				deck->permutationClass = new PermutationClass(deck->deckVector.size());
+
+				cout << "\n------Map--------\n";
+				for(auto i = deck->permutationClass->map.begin(); i != deck->permutationClass->map.end(); i++){
+					cout << (*i) << " ";
+				}
+
+
+				cout << "\n------Reverse Map--------\n";
+				for(auto i = deck->permutationClass->rmap.begin(); i != deck->permutationClass->rmap.end(); i++){
+					cout << (*i) << " ";
+				}
+
+
+				cout << "\n------Before Shuffle--------\n";
+				for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+					cout << (*i) << " ";
+				}
+				deck->permutationShuffle(deck->deckVector, deck->permutationClass->map);
+				cout << "\n------After Shuffle--------\n";
+				for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+					cout << (*i)<< " ";
+				}
+				deck->permutationShuffle(deck->deckVector, deck->permutationClass->rmap);
+				cout << "\n------After Reverse Shuffle--------\n";
+				for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+					cout << (*i) << " ";
+				}
+				//
+				//    cout << "----------------Begin-------------- \n";
+				//    vector<CardClass*> deckVector = deck->getDeck();
+				//    for(auto i = deckVector.begin(); i != deckVector.end(); i++){
+				//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
+				//        CipherText ct((*i)->id);
+				//
+				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
+				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
+				//
+				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
+				//
+				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
+				//
+				//        std::cout << ct << std::endl;
+				//        ct = deck->unmask_elGamal(deck->pk, ct);
+				//
+				//        std::cout << ct << std::endl;
+				//
+				//        //deck->decode(p,q,r,x,(*i)->id);
+				//    }
+				//    deck->reversePermutationShuffle(permutatedVectorThree);
+				//    deck->reversePermutationShuffle(permutatedVectorTwo);
+				//    deck->reversePermutationShuffle(permutatedVector);
+				//
+				//    vector<CardClass*> deckVectorTwo = deck->getDeck();
+				//    for(auto i = deckVectorTwo.begin(); i != deckVectorTwo.end(); i++){
+				//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
+				//    }
+
 
 				sleep(1);
 
@@ -500,11 +671,6 @@ int main(int argc, char** argv) {
 	//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
 	//    }
 
-
-
-	//Start 1st peer
-	//All others connects to that peer
-	//1st peer builds a ring
 
 	t.join();
 

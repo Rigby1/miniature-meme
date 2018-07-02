@@ -157,19 +157,18 @@ public:
 	CipherText mask_elGamal(const Public_Key &pk, const CipherText &ct, mpz_class *r);
 	CipherText unmask_elGamal(const Public_Key &pk, const CipherText &ct);
 	vector<CipherText> mask_elGamal_deck();
-	vector<CipherText> mask_elGamal_masked_deck();
+//	vector<CipherText> mask_elGamal_masked_deck();
 	CipherText finalize_unmask_elGamal(const Public_Key &pk, const CipherText &ct);
 //	void reversePermutationShuffle(PermutationClass *pClass);
 //	void reversePermutationShuffleForEncryptedVector(PermutationClass *pClass);
 //	void permutationShuffleForEncryptedVector(PermutationClass *pClass);
 	void transformCardClassVectorToMpzVector();
 	Public_Key pk;
-	vector<CipherText> maskedDeckVector;
+	vector<CipherText> deckVector;
 	PermutationClass * permutationClass;
-	vector<CardClass*> deckVectorCardClass;
 
 	mpz_class Shared_Public_Key;
-	vector<CardClass*> getDeck();
+	vector<CipherText> getDeck();
 	DeckAndOperations(const DeckAndOperations& orig);
 	DeckAndOperations(mpz_class p, mpz_class g);
 	virtual ~DeckAndOperations();
@@ -179,8 +178,8 @@ private:
 	//    std::vector<uint8_t> toBinary(mpz_class input);
 	//    size_t bits(mpz_class input);
 	//    size_t bytes(mpz_class input);
-	mpz_t cardsMultiplied;
-	int totalCardCount;
+	mpz_t cardsMultiplied; // not necessary at the moment , for the future; in order to keep track of number of cards
+	int totalCardCount; // not necessary at the moment , for the future; in order to keep track of multiplication of the cards
 
 
 
