@@ -12,7 +12,7 @@
  */
 
 #include "DeckAndOperations.h"
-
+#define NUMBEROFCARDS 52
 using namespace std;
 
 mpz_class Secret_Key;
@@ -46,7 +46,7 @@ DeckAndOperations::~DeckAndOperations() {
 
 void DeckAndOperations::generateCardsAndPutIntoDeck(){
 	mpz_class aPrime(1);
-
+	for(int i=0; i< NUMBEROFCARDS ; i++){
 
 		mpz_nextprime(aPrime.get_mpz_t(), aPrime.get_mpz_t());
 		CipherText ct(aPrime);
@@ -54,7 +54,6 @@ void DeckAndOperations::generateCardsAndPutIntoDeck(){
 		totalCardCount++;
 		mpz_mul(cardsMultiplied,cardsMultiplied,aPrime.get_mpz_t());
 		deckVector.push_back(ct);
-		//gmp_printf ("%s is an mpz %Zd\n", "here", aPrime);
 	}
 }
 
