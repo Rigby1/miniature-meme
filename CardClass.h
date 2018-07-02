@@ -22,6 +22,7 @@ using namespace std;
 class CardClass {
 public:
     CardClass();
+    CardClass(mpz_class);
     CardClass(mpz_class, int, int, string);
     CardClass(mpz_class, mpz_class, int, int, string);
     CardClass(const CardClass& orig);

@@ -24,6 +24,7 @@
 #include <iterator>
 #include <boost/asio.hpp>
 
+
 typedef struct {
 	mpz_class p;
 	mpz_class g;
@@ -34,8 +35,8 @@ extern mpz_class Secret_Key;
 using namespace std;
 
 class CipherText : mpz_class {
-	public :
-		mpz_class c_1, c_2;
+public :
+	mpz_class c_1, c_2;
 
 	CipherText() {
 	}
@@ -46,26 +47,84 @@ class CipherText : mpz_class {
 	CipherText(const CipherText &ct) : c_1(ct.c_1), c_2(ct.c_2) {
 	}
 
-    std::vector<uint8_t> toBinary() {
-        std::vector<uint8_t> r((this->bits() +7) / 8, 0);
-        mpz_export(r.data(), nullptr, -1, sizeof(uint8_t), 0, 0, this->get_mpz_t());
-        return r;
-    }
+	std::vector<uint8_t> toBinary() {
+		std::vector<uint8_t> r((this->bits() +7) / 8, 0);
+		mpz_export(r.data(), nullptr, -1, sizeof(uint8_t), 0, 0, this->get_mpz_t());
+		return r;
+	}
 
-    /**
-     * Return this number modulo power of 2.
-     * @param exp The exponent
-     * @return this number modulo power of 2
-     */
+	/**
+	 * Return this number modulo power of 2.
+	 * @param exp The exponent
+	 * @return this number modulo power of 2
+	 */
 
-    size_t bits() {
-        return mpz_sizeinbase(this->get_mpz_t(), 2);
-    }
-    size_t bytes() {
-        return (this->bits() + 7) / 8;
-    }
+	size_t bits() {
+		return mpz_sizeinbase(this->get_mpz_t(), 2);
+	}
+	size_t bytes() {
+		return (this->bits() + 7) / 8;
+	}
 
 };
+
+class PermutationClass {
+private:
+	size_t randomNumber(size_t min, size_t max){
+		std::mt19937_64 gen(rdev());
+		if(min<max){
+			std::uniform_int_distribution<> dis(min, max-1);
+			return dis(gen);
+		}
+		else
+			return 0;
+	}
+public:
+	std::random_device rdev;
+	std::vector<size_t> map, rmap;
+
+	PermutationClass(size_t size) {
+		for(size_t i = 0; i < size ; i++) {
+			map.push_back(i);
+			rmap.push_back(i);
+		}
+		randomize();
+		updateRmap();
+	}
+
+	PermutationClass() {
+
+	}
+
+
+	void randomize() {
+		for (size_t i=0; i<map.size()-1; i++) {
+			size_t j = randomNumber(i, map.size());
+			iter_swap(map.begin() + i, map.begin() + j);
+		}
+//		cout << "--------map----------" << std::endl;
+//		for (size_t i=0; i<map.size()-1; i++) {
+//			cout << i << " ";
+//		}
+		updateRmap();
+	}
+
+	void updateRmap() {
+		for(size_t i=0; i<map.size(); i++) {
+			rmap[map[i]] = i;
+		}
+	}
+
+
+	size_t getElementFromMap(size_t i) {
+		return map[i];
+	}
+
+	size_t getElementFromRMap(size_t i) {
+		return rmap[i];
+	}
+};
+
 
 inline std::ostream & operator<< (std::ostream &i, const CipherText &ct) {
 	return i << "CipherText(" << ct.c_1 << ", " << ct.c_2 << ")";
@@ -74,36 +133,57 @@ inline std::ostream & operator<< (std::ostream &i, const CipherText &ct) {
 
 class DeckAndOperations {
 public:
-    DeckAndOperations();
-    void generateCardsAndPutIntoDeck();
-    void shuffleDeck();
-    void generatePublicKey(Public_Key *pk);
-    void generateSecretKey(Public_Key *pk);
-    mpz_class getEncryptedSecret();
-//    std::vector<uint8_t> getEncryptedSecretInBinary();
-    mpz_class generateP (const mpz_class&);
-    mpz_class findGforP (const mpz_class&);
-    mpz_class secretRandomR (const mpz_class&);
-    mpz_class contributeToSharedSecret(mpz_class inp);
-    void permutationShuffle(vector<int> *pMap);
-    CipherText mask_elGamal(const Public_Key &pk, const CipherText &ct, mpz_class *r);
-    CipherText unmask_elGamal(const Public_Key &pk, const CipherText &ct);
-    void reversePermutationShuffle(vector<int> pVector);
-    Public_Key pk;
-    mpz_class Shared_Secret_Key;
-    vector<CardClass*> getDeck();
-    DeckAndOperations(const DeckAndOperations& orig);
-    DeckAndOperations(mpz_class p, mpz_class g);
-    virtual ~DeckAndOperations();
+	DeckAndOperations();
+	void generateCardsAndPutIntoDeck();
+	void shuffleDeck();
+	void generatePublicKey(Public_Key *pk);
+	void generateSecretKey(Public_Key *pk);
+	mpz_class getEncryptedSecret();
+	//    std::vector<uint8_t> getEncryptedSecretInBinary();
+	mpz_class generateP (const mpz_class&);
+	mpz_class findGforP (const mpz_class&);
+	mpz_class secretRandomR (const mpz_class&);
+	mpz_class contributeToSharedSecret(mpz_class inp);
+	template <class T>
+	void permutationShuffle(vector<T> &vectorToBePermutated, vector<size_t> mapToBeApplied){
+		vector<T> newDeckVectorClass;
+
+		for(size_t i = 0; i< mapToBeApplied.size(); i++){
+			newDeckVectorClass.push_back(vectorToBePermutated.at(mapToBeApplied.at(i)));
+		}
+		vectorToBePermutated = newDeckVectorClass;
+
+	}
+	CipherText mask_elGamal(const Public_Key &pk, const CipherText &ct, mpz_class *r);
+	CipherText unmask_elGamal(const Public_Key &pk, const CipherText &ct);
+	vector<CipherText> mask_elGamal_deck();
+	vector<CipherText> mask_elGamal_masked_deck();
+	CipherText finalize_unmask_elGamal(const Public_Key &pk, const CipherText &ct);
+//	void reversePermutationShuffle(PermutationClass *pClass);
+//	void reversePermutationShuffleForEncryptedVector(PermutationClass *pClass);
+//	void permutationShuffleForEncryptedVector(PermutationClass *pClass);
+	void transformCardClassVectorToMpzVector();
+	Public_Key pk;
+	vector<CipherText> maskedDeckVector;
+	PermutationClass * permutationClass;
+	vector<CardClass*> deckVectorCardClass;
+
+	mpz_class Shared_Public_Key;
+	vector<CardClass*> getDeck();
+	DeckAndOperations(const DeckAndOperations& orig);
+	DeckAndOperations(mpz_class p, mpz_class g);
+	virtual ~DeckAndOperations();
 
 private:
-    int randomNumber(int,int);
-//    std::vector<uint8_t> toBinary(mpz_class input);
-//    size_t bits(mpz_class input);
-//    size_t bytes(mpz_class input);
-    mpz_t cardsMultiplied;
-    int totalCardCount;
-    vector<CardClass*> deckVector;
+	size_t randomNumber(size_t, size_t);
+	//    std::vector<uint8_t> toBinary(mpz_class input);
+	//    size_t bits(mpz_class input);
+	//    size_t bytes(mpz_class input);
+	mpz_t cardsMultiplied;
+	int totalCardCount;
+
+
+
 
 };
 
