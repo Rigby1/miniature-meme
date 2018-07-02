@@ -6,7 +6,7 @@
 
 /* 
  * File:   DeckAndOperatios.h
- * Author: rigo
+ * Author: Deniz
  *
  * Created on April 23, 2018, 9:30 PM
  */

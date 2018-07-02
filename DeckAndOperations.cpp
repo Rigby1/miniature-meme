@@ -6,7 +6,7 @@
 
 /* 
  * File:   DeckAndOperatios.cpp
- * Author: rigo
+ * Author: Deniz
  * 
  * Created on April 23, 2018, 9:30 PM
  */
@@ -45,31 +45,11 @@ DeckAndOperations::~DeckAndOperations() {
 
 
 void DeckAndOperations::generateCardsAndPutIntoDeck(){
-	mpz_class aPrime;
-	aPrime = 1;
-	int type;
-	int number;
-	string representation;
-	for(int i=0; i<52 ; i++){
-		type = i / 13;
-		if(i % 13 == 0)
-			number = 13;
-		else
-			number = i%13;
-		if (type == 0)
-			representation = "clubs " + to_string(number);
-		else if (type == 1)
-			representation = "diamonds " + to_string(number);
-		else if (type == 2)
-			representation = "hearts " + to_string(number);
-		else if (type == 3)
-			representation = "spades " + to_string(number);
+	mpz_class aPrime(1);
 
 
 		mpz_nextprime(aPrime.get_mpz_t(), aPrime.get_mpz_t());
 		CipherText ct(aPrime);
-//		CardClass* card = new CardClass(aPrime, type, number, representation);
-//		representation = "";
 
 		totalCardCount++;
 		mpz_mul(cardsMultiplied,cardsMultiplied,aPrime.get_mpz_t());

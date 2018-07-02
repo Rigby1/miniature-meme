@@ -6,7 +6,7 @@
 
 /* 
  * File:   main.cpp
- * Author: rigo
+ * Author: Deniz
  *
  * Created on April 23, 2018, 9:22 PM
  */
@@ -32,34 +32,12 @@
 #include <random>
 
 
-#include "bigint.h"
 
 using boost::asio::ip::tcp;
 std::string portNoGlobal;
 bool readySent = false;
-bool sharedSecretSent = false;
-bool isLeader = false;
-
-
-
-template <class T>
-void sendVector(tcp::socket &socket, const std::vector<T> &data) {
-	size_t size = data.size() * sizeof(T);
-	boost::asio::write(socket, boost::asio::buffer(&size, sizeof(size)));
-	boost::asio::write(socket, boost::asio::buffer(data));
-}
-
-template <class T>
-std::vector<T> receiveVector(tcp::socket &socket) {
-	size_t size;
-
-	boost::asio::read(socket, boost::asio::buffer(&size, sizeof(size)));
-	std::vector<T> r(size / sizeof(T));
-	boost::asio::read(socket, boost::asio::buffer(r));
-	cout << " r returned \n";
-	return r;
-
-}
+bool sharedPKSent = false;
+bool isInitiator = false;
 
 
 class game_session :
@@ -174,22 +152,22 @@ public:
 			else if(server_readMsg.header.type == 101){
 				deck->pk.p= server_readMsg.data;
 				cout << "p is : " << deck->pk.p << std::endl;
-				if(!isLeader){
+				if(!isInitiator){
 					deliver(deck->pk.p.get_str(10),101);
 				}
 			}
 			else if(server_readMsg.header.type == 102){
 				deck->pk.g= server_readMsg.data;
 				cout << "g is : " << deck->pk.g << std::endl;
-				if(!isLeader){
+				if(!isInitiator){
 					deliver(deck->pk.g.get_str(10),102);
 				}
 			}
 			else if(server_readMsg.header.type == 100){
-				if(isLeader){
-					if(!sharedSecretSent){
+				if(isInitiator){
+					if(!sharedPKSent){
 						deck->Shared_Public_Key = server_readMsg.data;
-						sharedSecretSent = true;
+						sharedPKSent = true;
 						deliver(deck->Shared_Public_Key.get_str(10),100);
 						cout << "PUBLIC SECRET KEY IS : " << deck->Shared_Public_Key << std::endl;
 					}
@@ -216,10 +194,10 @@ public:
 						//						cout << "c1: " << ct.c_1 << "c2: " << ct.c_2 << std::endl;
 					}
 				}else{
-					if(!sharedSecretSent){
+					if(!sharedPKSent){
 						deck->generateSecretKey(&deck->pk);		//since we set public key by sending p and g we find a new secret key as we get x tilda generation
 						mpz_class input(server_readMsg.data);
-						sharedSecretSent = true;
+						sharedPKSent = true;
 						deliver(deck->contributeToSharedSecret(input).get_str(10),100);
 					}
 					else {
@@ -246,7 +224,7 @@ public:
 			else if(server_readMsg.header.type == 203){
 				deck->deckVector = maskedDeckVectorTemp;
 				maskedDeckVectorTemp.clear();
-				if(!isLeader){
+				if(!isInitiator){
 					deck->permutationClass = new PermutationClass(deck->deckVector.size());
 					deck->permutationShuffle(deck->deckVector,deck->permutationClass->map);
 					vector<CipherText> cts= deck->mask_elGamal_deck();
@@ -282,7 +260,7 @@ public:
 
 			}
 			else if(server_readMsg.header.type == 206){
-				if(!isLeader){
+				if(!isInitiator){
 					deck->deckVector = maskedDeckVectorTemp;
 					maskedDeckVectorTemp.clear();
 					for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
@@ -515,7 +493,7 @@ int main(int argc, char** argv) {
 		cin >> controllerInput;
 		if (controllerInput == 1) {
 			readySent = true;
-			isLeader = true;
+			isInitiator = true;
 			new_session->deliver("ready",2);
 
 		}
