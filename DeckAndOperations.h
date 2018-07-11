@@ -83,6 +83,11 @@ public:
 	std::random_device rdev;
 	std::vector<size_t> map, rmap;
 
+
+	PermutationClass() {
+
+	}
+
 	PermutationClass(size_t size) {
 		for(size_t i = 0; i < size ; i++) {
 			map.push_back(i);
@@ -92,8 +97,22 @@ public:
 		updateRmap();
 	}
 
-	PermutationClass() {
-
+	PermutationClass(size_t size, bool isRandom) {
+		if(isRandom){
+			for(size_t i = 0; i < size ; i++) {
+				map.push_back(i);
+				rmap.push_back(i);
+			}
+			randomize();
+			updateRmap();
+		}
+		else{
+			for(size_t i = 0; i < size ; i++) {
+				map.push_back(i);
+				rmap.push_back(i);
+			}
+			updateRmap();
+		}
 	}
 
 
@@ -102,10 +121,6 @@ public:
 			size_t j = randomNumber(i, map.size());
 			iter_swap(map.begin() + i, map.begin() + j);
 		}
-//		cout << "--------map----------" << std::endl;
-//		for (size_t i=0; i<map.size()-1; i++) {
-//			cout << i << " ";
-//		}
 		updateRmap();
 	}
 
@@ -154,7 +169,12 @@ public:
 		vectorToBePermutated = newDeckVectorClass;
 
 	}
-	CipherText mask_elGamal(const Public_Key &pk, const CipherText &ct, mpz_class *r);
+
+
+	vector<mpz_class> generateSecretRandomRVector(const mpz_class &p, int size);
+
+	CipherText mask_elGamal(const Public_Key &pk, const CipherText &ct, mpz_class *rp);
+	vector<CipherText> re_mask_elGamal_deck(const Public_Key &pk, vector<CipherText> &vectorToRemasked, vector<mpz_class> &rp);
 	CipherText unmask_elGamal(const Public_Key &pk, const CipherText &ct);
 	vector<CipherText> mask_elGamal_deck();
 //	vector<CipherText> mask_elGamal_masked_deck();
