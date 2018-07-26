@@ -12,7 +12,7 @@
  */
 
 #include "DeckAndOperations.h"
-#define NUMBEROFCARDS 3
+#define NUMBEROFCARDS 8
 using namespace std;
 
 mpz_class Secret_Key;
@@ -175,11 +175,12 @@ mpz_class DeckAndOperations::contributeToSharedSecret(mpz_class inp) {
 
 
 mpz_class DeckAndOperations::generateP(const mpz_class &nbits) {
-
+//	return mpz_class(19);
 	return mpz_class("beb7ff0625cb71c1939bba00527bdf77de8b1d38a16edf5527a8d967eec39c4d77c21551362e915fb1ab6ae3b3075ae456f58bd31794e1bd1b4e99bdf12fb7c9", 16);
 }
 
 mpz_class DeckAndOperations::findGforP(const mpz_class &p){
+//	return mpz_class(2);
 	return mpz_class(7);
 }
 

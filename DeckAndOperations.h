@@ -79,6 +79,7 @@ private:
 		else
 			return 0;
 	}
+
 public:
 	std::random_device rdev;
 	std::vector<size_t> map, rmap;
@@ -88,33 +89,48 @@ public:
 
 	}
 
-	PermutationClass(size_t size) {
+	PermutationClass(const PermutationClass &x) : map(x.map), rmap(x.rmap) {
+		//nothing
+	}
+
+
+	PermutationClass(size_t size) : PermutationClass(size, true) {
+		//nothing
+	}
+
+	PermutationClass(size_t size, bool isRandom) {
 		for(size_t i = 0; i < size ; i++) {
 			map.push_back(i);
 			rmap.push_back(i);
 		}
-		randomize();
+		if(isRandom){
+			randomize();
+		}
+	}
+	void makePi() {
+			map.clear();
+			map.push_back(3);
+			map.push_back(0);
+			map.push_back(2);
+			map.push_back(1);
+			updateRmap();
+		}
+	void makePiPrime() {
+		map.clear();
+		map.push_back(0);
+		map.push_back(1);
+		map.push_back(3);
+		map.push_back(2);
 		updateRmap();
 	}
-
-	PermutationClass(size_t size, bool isRandom) {
-		if(isRandom){
-			for(size_t i = 0; i < size ; i++) {
-				map.push_back(i);
-				rmap.push_back(i);
-			}
-			randomize();
-			updateRmap();
-		}
-		else{
-			for(size_t i = 0; i < size ; i++) {
-				map.push_back(i);
-				rmap.push_back(i);
-			}
-			updateRmap();
-		}
+	void makePiDoublePrime() {
+		map.clear();
+		map.push_back(3);
+		map.push_back(0);
+		map.push_back(1);
+		map.push_back(2);
+		updateRmap();
 	}
-
 
 	void randomize() {
 		for (size_t i=0; i<map.size()-1; i++) {
