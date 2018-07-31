@@ -175,6 +175,7 @@ public:
 	mpz_class findGforP (const mpz_class&);
 	mpz_class secretRandomR (const mpz_class&);
 	mpz_class contributeToSharedSecret(mpz_class inp);
+	mpz_class getSecretKey();
 	template <class T>
 	void permutationShuffle(vector<T> &vectorToBePermutated, vector<size_t> mapToBeApplied){
 		vector<T> newDeckVectorClass;
@@ -190,8 +191,12 @@ public:
 	vector<mpz_class> generateSecretRandomRVector(const mpz_class &p, int size);
 
 	CipherText mask_elGamal(const Public_Key &pk, const CipherText &ct, mpz_class *rp);
+	CipherText mask_elGamal_with_Secret_Key(const Public_Key &pk, const CipherText &ct, mpz_class *rp) ;
+
 	vector<CipherText> re_mask_elGamal_deck(const Public_Key &pk, vector<CipherText> &vectorToRemasked, vector<mpz_class> &rp);
 	CipherText unmask_elGamal(const Public_Key &pk, const CipherText &ct);
+//	CipherText unmask_elGamal_Special(const Public_Key &pk, const CipherText &ct);
+
 	vector<CipherText> mask_elGamal_deck();
 //	vector<CipherText> mask_elGamal_masked_deck();
 	CipherText finalize_unmask_elGamal(const Public_Key &pk, const CipherText &ct);

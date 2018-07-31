@@ -34,7 +34,7 @@
 
 
 using boost::asio::ip::tcp;
-std::string portNoGlobal;
+std::string outGoingConnection;
 bool readySent = false;
 bool sharedPKSent = false;
 bool isInitiator = false;
@@ -100,7 +100,7 @@ public:
 			server_accept();
 		} else {
 			cout << "game_session_left handle_accept -- no error --" << std::endl;
-			  server_read_message();
+			server_read_message();
 		}
 	}
 
@@ -131,32 +131,31 @@ public:
 	}
 
 	void server_handle_sendHead(const boost::system::error_code& err) {
-			if (err) {
-				cout << "ERROR: sendHead" << std::endl;
-			} else {
-				msg_t &msg = server_sendQueue.front();
+		if (err) {
+			cout << "ERROR: sendHead" << std::endl;
+		} else {
+			msg_t &msg = server_sendQueue.front();
 
-				boost::asio::async_write(server_socket,
-						boost::asio::buffer(msg.data),
-						boost::bind(&game_session::server_handle_sendMsg, shared_from_this(),
-								boost::asio::placeholders::error));
-			}
+			boost::asio::async_write(server_socket,
+					boost::asio::buffer(msg.data),
+					boost::bind(&game_session::server_handle_sendMsg, shared_from_this(),
+							boost::asio::placeholders::error));
 		}
-		void server_handle_sendMsg(const boost::system::error_code& err) {
-			if (err) {
-				cout << "ERROR: sendMsg" << std::endl;
-			} else {
+	}
+	void server_handle_sendMsg(const boost::system::error_code& err) {
+		if (err) {
+			cout << "ERROR: sendMsg" << std::endl;
+		} else {
 
-				//			cout << "Sent Message!" << std::endl;
-				server_sendQueue.pop_front();
-				server_startSending();
+			//			cout << "Sent Message!" << std::endl;
+			server_sendQueue.pop_front();
+			server_startSending();
 
-				//			  thr.join();
-			}
+			//			  thr.join();
 		}
+	}
 
 	void server_read_message() {
-		cout << "------ Server Read Message" << std::endl;
 
 		boost::asio::async_read(server_socket,
 				boost::asio::buffer(&server_readMsg.header, sizeof(server_readMsg.header)),
@@ -177,11 +176,13 @@ public:
 	}
 	string c1 = "1";
 	string c2 = "2";
-	vector<CipherText> shuffledDeckVectorTemp;
+	vector<CipherText> cDoublePrime_verifier,c_prover, c_verifier, cPrime_prover, cDoublePrime_prover, cPrime_Verifier;
 	vector<size_t> recievedPiPrimeVector, recievedPiDoublePrimeVector;
-	PermutationClass * tempPermuatationClassForZKIP;
-	mpz_class randomS;
-	vector<mpz_class> rVectorForInitiatior, rVectorForOthers, rPrimeVector, receivedRPrimeVector, recievedRDoublePrimeVector;
+	PermutationClass * piPrime_Prover;
+	PermutationClass * pi_Prover;
+	CipherText firstMessageCone, secondMessageCtwo, ProverCThree;
+	mpz_class randomS, mDoublePrimeProver , mPrimeProver, rTriplePrimeProver, mDoublePrimeVerifier,mPrimeVerifier;
+	vector<mpz_class>  rVectorForOthers, r_prover ,rPrime_Prover, receivedRPrimeVector, RDouble_Verifier;
 	void server_handle_readMsg(const boost::system::error_code& err) {
 		if (err) {
 			cout << "ERROR: readMsg" << std::endl;
@@ -196,10 +197,42 @@ public:
 				}
 				else {// this is else is for the one who creates deck and pk
 					try	{
-						deliver_to_Server(deck->pk.p.get_str(10),101);
-						deliver_to_Server(deck->pk.g.get_str(10),102);
-						deliver_to_Server(deck->getEncryptedSecret().get_str(10),100);
 
+						if(operationController == 3) {
+							deliver_to_Server(deck->pk.p.get_str(10),510);
+							deliver_to_Server(deck->pk.g.get_str(10),511);
+							deliver_to_Server(deck->getEncryptedSecret().get_str(10),512);
+							cout << "--------- x ---------------"<< std::endl;
+							cout << deck->getSecretKey() << std::endl;
+							cout << "--------- g^x ---------------"<< std::endl;
+							cout << deck->getEncryptedSecret() << std::endl;
+							deck->generateCardsAndPutIntoDeck();
+							CipherText cOne = deck->deckVector.at(0);
+							CipherText cTwo = deck->deckVector.at(0);
+
+							cOne = deck->mask_elGamal(deck->pk,cOne,NULL);
+
+							mpz_class rPrime = deck->secretRandomR(deck->pk.p);
+							cout << "--------- r' ---------------"<< std::endl;
+							cout << rPrime << std::endl;
+
+
+
+							cTwo =  deck->mask_elGamal(deck->pk,cTwo,&rPrime);
+							cout << "--------- m1 and m2 ---------------"<< std::endl;
+
+							cout << cOne << std::endl;
+							cout << cTwo << std::endl;
+							deliver_to_Server(cOne.c_1.get_str(10),501);
+							deliver_to_Server(cOne.c_2.get_str(10),502);
+							deliver_to_Server(cTwo.c_1.get_str(10),503);
+							deliver_to_Server(cTwo.c_2.get_str(10),504);
+						}
+						else {
+							deliver_to_Server(deck->pk.p.get_str(10),101);
+							deliver_to_Server(deck->pk.g.get_str(10),102);
+							deliver_to_Server(deck->getEncryptedSecret().get_str(10),100);
+						}
 						sleep(1);
 
 					}
@@ -253,6 +286,7 @@ public:
 						//--------------------------NEXT PHASE FROM INITIATOR DECIDED HERE -----------------
 						switch(operationController) {
 						case 1:
+						{
 							vector<size_t> permutationVector;
 							deck->permutationClass = new PermutationClass(deck->deckVector.size(),true);
 							deck->permutationShuffle(deck->deckVector, deck->permutationClass->map);
@@ -271,10 +305,40 @@ public:
 							}
 							deliver_to_Server("done sending",203);
 							cout << "--------------- 1 - SHUFFLED DECK SENT  -------------" << std::endl;
-
+							break;
 						}
+						case 2:
+						{
 
+							c_prover = deck->deckVector;
+							//							deck->permutationClass = new PermutationClass(deck->deckVector.size());
+							//							deck->permutationShuffle(c_prover, deck->permutationClass->map);
+							//							rVectorForInitiatior = deck->generateSecretRandomRVector(deck->pk.p,deck->deckVector.size());
+							//							vector<CipherText> cts= deck->re_mask_elGamal_deck(deck->pk, deck->deckVector, rVectorForInitiatior);// we use re_mask_elGamal_deck instead of mask_elGamal_deck() because
+							cout << "--------------- 0.1- C Content  -------------" << std::endl;
+							for(auto i = c_prover.begin(); i != c_prover.end(); i++){
+								cout << *i << std::endl;
+							}
 
+							// we want to use r later for calculating r'' in zero knowledge interactive proof part
+							//sendin c''
+
+							pi_Prover = new PermutationClass(deck->deckVector.size());
+							cDoublePrime_prover = c_prover;
+							deck->permutationShuffle(cDoublePrime_prover, pi_Prover->map);
+
+							r_prover = deck->generateSecretRandomRVector(deck->pk.p, cDoublePrime_prover.size());
+							deck->re_mask_elGamal_deck(deck->pk,cDoublePrime_prover, r_prover);
+
+							for(auto i = cDoublePrime_prover.begin(); i != cDoublePrime_prover.end(); i++){
+								deliver_to_Server(i->c_1.get_str(10),401);
+								deliver_to_Server(i->c_2.get_str(10),402);
+							}
+							deliver_to_Server("done sending",403);
+							cout << "--------------- 1 - c'' SENT  -------------" << std::endl;
+							break;
+						}
+						}
 					}
 				}else{
 					if(!sharedPKSent){
@@ -291,6 +355,106 @@ public:
 				}
 
 			}
+			else if(server_readMsg.header.type == 510){
+				deck->pk.p = server_readMsg.data;
+			}
+			else if(server_readMsg.header.type == 511){
+				deck->pk.g = server_readMsg.data;
+			}
+			else if(server_readMsg.header.type == 512){
+				deck->Shared_Public_Key = server_readMsg.data;
+				cout << "--------- g^x ---------------"<< std::endl;
+				cout << deck->Shared_Public_Key << std::endl;
+
+			}
+
+			else if(server_readMsg.header.type == 501){
+				c1 = server_readMsg.data;
+
+			}
+			else if(server_readMsg.header.type == 502){
+				c2 = server_readMsg.data;
+				mpz_class aOne(c1);
+				mpz_class bOne(c2);
+				CipherText ct(aOne,bOne);
+				firstMessageCone = ct;
+			}
+			else if(server_readMsg.header.type == 503){
+				c1 = server_readMsg.data;
+
+			}
+			else if(server_readMsg.header.type == 504){
+				c2 = server_readMsg.data;
+				mpz_class aTwo(c1);
+				mpz_class bTwo(c2);
+				CipherText ct(aTwo,bTwo);
+				secondMessageCtwo = ct;
+
+				rTriplePrimeProver = deck->secretRandomR(deck->pk.p);
+
+				mpz_powm(mDoublePrimeVerifier.get_mpz_t(),deck->pk.g.get_mpz_t(),rTriplePrimeProver.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+				mpz_class rDoublePrime = deck->secretRandomR(deck->pk.p);
+
+				mpz_class g_to_rDoublePrime;
+				mpz_powm(g_to_rDoublePrime.get_mpz_t(),deck->pk.g.get_mpz_t(),rDoublePrime.get_mpz_t(),deck->pk.p.get_mpz_t());
+				mpz_class g_to_rDoublePrimeandSharedPublicKey;
+				mpz_powm(g_to_rDoublePrimeandSharedPublicKey.get_mpz_t(),deck->Shared_Public_Key.get_mpz_t(),rDoublePrime.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+				CipherText thirdMessageCThree((g_to_rDoublePrime * firstMessageCone.c_1 / secondMessageCtwo.c_1) % deck->pk.p, (mDoublePrimeVerifier * firstMessageCone.c_2 * g_to_rDoublePrimeandSharedPublicKey / secondMessageCtwo.c_2 ) % deck->pk.p);
+				cout << "a3,b3  " << thirdMessageCThree << std::endl;
+
+				deliver_to_Server(thirdMessageCThree.c_1.get_str(10),505);
+				deliver_to_Server(thirdMessageCThree.c_2.get_str(10),506);
+
+			}
+
+			else if(server_readMsg.header.type == 505){
+				c1 = server_readMsg.data;
+
+			}
+			else if(server_readMsg.header.type == 506){
+				c2 = server_readMsg.data;
+				mpz_class aThree(c1);
+				mpz_class bThree(c2);
+				CipherText ct(aThree,bThree);
+				ProverCThree = ct;
+
+				//				CipherText mPrimCT = deck->unmask_elGamal_Special(deck->pk,ProverCThree);
+
+				mpz_class aThree_ToXInverse;
+				mpz_powm(aThree_ToXInverse.get_mpz_t(), ProverCThree.c_1.get_mpz_t(), deck->getSecretKey().get_mpz_t(),deck->pk.p.get_mpz_t());
+				mpz_invert(aThree_ToXInverse.get_mpz_t(), aThree_ToXInverse.get_mpz_t(),deck->pk.p.get_mpz_t());
+				//	mpz_invert(unmaskedInverted.get_mpz_t(),unmasked.get_mpz_t(),pk.p.get_mpz_t());
+
+				mPrimeProver = (ProverCThree.c_2 *aThree_ToXInverse)% deck->pk.p ;
+				deliver_to_Server(mPrimeProver.get_str(10),507);
+
+			}
+
+
+			else if(server_readMsg.header.type == 507){
+				mPrimeVerifier = server_readMsg.data;
+				cout << "--------check if mPrime = mDoublePrime ----------" <<std::endl;
+				cout << "mPrime is ;" << std::endl;
+				cout << mPrimeVerifier << std::endl;
+				cout << "MDoublePrime is ;" << std::endl;
+				cout << mDoublePrimeVerifier << std::endl;
+
+				deliver_to_Server(rTriplePrimeProver.get_str(10),508);
+			}
+
+			else if(server_readMsg.header.type == 508){
+				rTriplePrimeProver = server_readMsg.data;
+
+				mpz_class g_to_r_TriplePrime;
+				mpz_powm(g_to_r_TriplePrime.get_mpz_t(),deck->pk.g.get_mpz_t(),rTriplePrimeProver.get_mpz_t(),deck->pk.p.get_mpz_t());
+				cout << " ----------- g^r''' --------" << std::endl;
+				cout << g_to_r_TriplePrime << std::endl;
+				cout << " ----------- m' --------" << std::endl;
+				cout << mPrimeProver << std::endl;
+			}
+
 			else if(server_readMsg.header.type == 201){
 				c1 = server_readMsg.data;
 
@@ -300,11 +464,11 @@ public:
 				mpz_class cOne(c1);
 				mpz_class cTwo(c2);
 				CipherText ct(cOne,cTwo);
-				shuffledDeckVectorTemp.push_back(ct);
+				cDoublePrime_verifier.push_back(ct);
 			}
 			else if(server_readMsg.header.type == 203){
-				deck->deckVector = shuffledDeckVectorTemp;
-				shuffledDeckVectorTemp.clear();
+				deck->deckVector = cDoublePrime_verifier;
+				cDoublePrime_verifier.clear();
 				if(!isInitiator){
 					cout << "--------------- 2 - SHUFFLED DECK received  -------------" << std::endl;
 
@@ -345,13 +509,13 @@ public:
 				mpz_class cOne(c1);
 				mpz_class cTwo(c2);
 				CipherText ct(cOne,cTwo);
-				shuffledDeckVectorTemp.push_back(ct);
+				cDoublePrime_verifier.push_back(ct);
 
 			}
 			else if(server_readMsg.header.type == 206){
 				if(!isInitiator){
-					deck->deckVector = shuffledDeckVectorTemp;
-					shuffledDeckVectorTemp.clear();
+					deck->deckVector = cDoublePrime_verifier;
+					cDoublePrime_verifier.clear();
 					cout << "------------6 - syncronizing reshuffled deck------------" << std::endl;
 					cout << "------------CONTENT OF RESHUFLLED DECK IN SYNCRONIZATION PHASE------------" << std::endl;
 
@@ -366,7 +530,7 @@ public:
 
 					bool shuffleCheck = true;
 					cout << "------------CONTENT OF RESHUFLLED DECK IN SYNCRONIZATION PHASE------------" << std::endl;
-					for(auto i = shuffledDeckVectorTemp.begin(), j = deck->deckVector.begin(); i!= shuffledDeckVectorTemp.end() && j!=  deck->deckVector.end();i++ , j++){
+					for(auto i = cDoublePrime_verifier.begin(), j = deck->deckVector.begin(); i!= cDoublePrime_verifier.end() && j!=  deck->deckVector.end();i++ , j++){
 						cout << *i << std::endl;
 						if((*j).c_1 != (*i).c_1 && (*j).c_2 != (*i).c_2) {
 							shuffleCheck = false;
@@ -378,7 +542,7 @@ public:
 					}
 					else {
 						cout << "------------7 - reshuffled vectors are all same in each node------------" << std::endl;
-						shuffledDeckVectorTemp.clear();
+						cDoublePrime_verifier.clear();
 					}
 					//maskedDeckVector and maskedDeckVectorTemp should be exactly same
 					//the comparison should be done here
@@ -413,15 +577,16 @@ public:
 
 					switch (operationController) {
 					case 1 :  // UNSHUFFLE PROGRESS IS STARTED BY INITATIOR HERE
-						cout << "------------8 - sending deckVector to unshuffle------------" << std::endl;
-//						deck->permutationShuffle(deck->deckVector,deck->permutationClass->map);
-//
-//						for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
-//							deliver_to_Server(i->c_1.get_str(10),301);
-//							deliver_to_Server(i->c_2.get_str(10),302);
-//						}
-//						deliver_to_Server("Masked Deck Vectors should be all same", 303);
-						deliver_to_Client("HALLOOOOOO",123);
+						//						cout << "------------8 - sending deckVector to unshuffle------------" << std::endl;
+						//						deck->permutationShuffle(deck->deckVector,deck->permutationClass->map);
+						//
+						//						for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+						//							deliver_to_Server(i->c_1.get_str(10),301);
+						//							deliver_to_Server(i->c_2.get_str(10),302);
+						//						}
+						//						deliver_to_Server("Masked Deck Vectors should be all same", 303);
+						//						deliver_to_Client("HALLOOOOOO",123);
+						break;
 					}
 
 
@@ -429,95 +594,95 @@ public:
 
 			}
 
-			else if(server_readMsg.header.type == 301){
-
-				c1 = server_readMsg.data;
-
-			}
-			else if(server_readMsg.header.type == 302){
-
-				c2 = server_readMsg.data;
-				mpz_class cOne(c1);
-				mpz_class cTwo(c2);
-				CipherText ct(cOne,cTwo);
-				shuffledDeckVectorTemp.push_back(ct);
-
-			}
-			else if(server_readMsg.header.type == 303){
-
-				if(!isInitiator){
-					cout << "------------9 - Received deckVector to unshuffle------------" << std::endl;
-
-					deck->permutationShuffle(shuffledDeckVectorTemp,deck->permutationClass->map);
-					cout << "------------10 - reverse permutation applied deckVector to unshuffle------------" << std::endl;
-					cout << "------------CONTENT OF  deckVector to after applied reverse map------------" << std::endl;
-
-					for(auto i = shuffledDeckVectorTemp.begin(); i != shuffledDeckVectorTemp.end(); i++){
-						cout << (*i) << std::endl;
-						deliver_to_Server((*i).c_1.get_str(10),301);
-						deliver_to_Server((*i).c_2.get_str(10),302);
-					}
-					shuffledDeckVectorTemp.clear();
-					deliver_to_Server("sending completed for unshuffle",303);
-//					deliver_to_Client("asdasdasdasdasdasdasdasd",123);
-				}
-				else {
-					deck->deckVector = shuffledDeckVectorTemp;
-					cout << "------------CONTENT OF  deckVector to after applied reverse map by all peers------------" << std::endl;
-
-					for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
-						cout << (*i) << std::endl;
-//						deliver((*i).c_1.get_str(10),306);
-//						deliver((*i).c_2.get_str(10),307);
-					}
-					cout << "------------9 - SENDING UNSHUFFLED DECK TO SYNRONIZE------------" << std::endl;
-
-//					deliver("All vectors should be same",308);
-
-					shuffledDeckVectorTemp.clear();
-				}
-
-			}
-			else if(server_readMsg.header.type == 306){
-				c1 = server_readMsg.data;
-
-
-			}
-			else if(server_readMsg.header.type == 307){
-				c2 = server_readMsg.data;
-				mpz_class cOne(c1);
-				mpz_class cTwo(c2);
-				CipherText ct(cOne,cTwo);
-				shuffledDeckVectorTemp.push_back(ct);
-
-
-			}
-			else if(server_readMsg.header.type == 308){
-				if(!isInitiator){
-					deck->deckVector = shuffledDeckVectorTemp;
-					cout << "------------10 - RECEIVED UNSHUFFLED DECK TO SYNRONIZE------------"<< std::endl;
-				}
-				else{
-					bool synronizeUnshuffledDeck = true;
-					cout << "------------CONTENT OF UNSHUFLLED DECK IN SYNCRONIZATION PHASE------------" << std::endl;
-					for(auto i = shuffledDeckVectorTemp.begin(), j = deck->deckVector.begin(); i!= shuffledDeckVectorTemp.end() && j!=  deck->deckVector.end();i++ , j++){
-						cout << *i << std::endl;
-						if((*j).c_1 != (*i).c_1 && (*j).c_2 != (*i).c_2) {
-							synronizeUnshuffledDeck = false;
-						}
-					}
-
-					if(synronizeUnshuffledDeck == false) {
-						cout << "ERROR: SOMEONE IS CHEATING DURING SYNCRONIZATION OF UNSHUFFLED DECK" << std::endl;
-					}
-					else {
-						cout << "------------11 - reshuffled vectors are all same in each node------------" << std::endl;
-						shuffledDeckVectorTemp.clear();
-					}
-				}
-
-
-			}
+			//			else if(server_readMsg.header.type == 301){
+			//
+			//				c1 = server_readMsg.data;
+			//
+			//			}
+			//			else if(server_readMsg.header.type == 302){
+			//
+			//				c2 = server_readMsg.data;
+			//				mpz_class cOne(c1);
+			//				mpz_class cTwo(c2);
+			//				CipherText ct(cOne,cTwo);
+			//				cVectorForVerifier.push_back(ct);
+			//
+			//			}
+			//			else if(server_readMsg.header.type == 303){
+			//
+			//				if(!isInitiator){
+			//					cout << "------------9 - Received deckVector to unshuffle------------" << std::endl;
+			//
+			//					deck->permutationShuffle(cVectorForVerifier,deck->permutationClass->map);
+			//					cout << "------------10 - reverse permutation applied deckVector to unshuffle------------" << std::endl;
+			//					cout << "------------CONTENT OF  deckVector to after applied reverse map------------" << std::endl;
+			//
+			//					for(auto i = cVectorForVerifier.begin(); i != cVectorForVerifier.end(); i++){
+			//						cout << (*i) << std::endl;
+			//						deliver_to_Server((*i).c_1.get_str(10),301);
+			//						deliver_to_Server((*i).c_2.get_str(10),302);
+			//					}
+			//					cVectorForVerifier.clear();
+			//					deliver_to_Server("sending completed for unshuffle",303);
+			//					//					deliver_to_Client("asdasdasdasdasdasdasdasd",123);
+			//				}
+			//				else {
+			//					deck->deckVector = cVectorForVerifier;
+			//					cout << "------------CONTENT OF  deckVector to after applied reverse map by all peers------------" << std::endl;
+			//
+			//					for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
+			//						cout << (*i) << std::endl;
+			//						//						deliver((*i).c_1.get_str(10),306);
+			//						//						deliver((*i).c_2.get_str(10),307);
+			//					}
+			//					cout << "------------9 - SENDING UNSHUFFLED DECK TO SYNRONIZE------------" << std::endl;
+			//
+			//					//					deliver("All vectors should be same",308);
+			//
+			//					cVectorForVerifier.clear();
+			//				}
+			//
+			//			}
+			//			else if(server_readMsg.header.type == 306){
+			//				c1 = server_readMsg.data;
+			//
+			//
+			//			}
+			//			else if(server_readMsg.header.type == 307){
+			//				c2 = server_readMsg.data;
+			//				mpz_class cOne(c1);
+			//				mpz_class cTwo(c2);
+			//				CipherText ct(cOne,cTwo);
+			//				cVectorForVerifier.push_back(ct);
+			//
+			//
+			//			}
+			//			else if(server_readMsg.header.type == 308){
+			//				if(!isInitiator){
+			//					deck->deckVector = cVectorForVerifier;
+			//					cout << "------------10 - RECEIVED UNSHUFFLED DECK TO SYNRONIZE------------"<< std::endl;
+			//				}
+			//				else{
+			//					bool synronizeUnshuffledDeck = true;
+			//					cout << "------------CONTENT OF UNSHUFLLED DECK IN SYNCRONIZATION PHASE------------" << std::endl;
+			//					for(auto i = cVectorForVerifier.begin(), j = deck->deckVector.begin(); i!= cVectorForVerifier.end() && j!=  deck->deckVector.end();i++ , j++){
+			//						cout << *i << std::endl;
+			//						if((*j).c_1 != (*i).c_1 && (*j).c_2 != (*i).c_2) {
+			//							synronizeUnshuffledDeck = false;
+			//						}
+			//					}
+			//
+			//					if(synronizeUnshuffledDeck == false) {
+			//						cout << "ERROR: SOMEONE IS CHEATING DURING SYNCRONIZATION OF UNSHUFFLED DECK" << std::endl;
+			//					}
+			//					else {
+			//						cout << "------------11 - reshuffled vectors are all same in each node------------" << std::endl;
+			//						cVectorForVerifier.clear();
+			//					}
+			//				}
+			//
+			//
+			//			}
 			/*
 			 * ZERO KNOWLEDGE INTERACTIVE PROOF FOR CORRECT SHUFFLING - BEGIN
 			 */
@@ -532,69 +697,147 @@ public:
 				mpz_class cOne(c1);
 				mpz_class cTwo(c2);
 				CipherText ct(cOne,cTwo);
-				shuffledDeckVectorTemp.push_back(ct);
+				cDoublePrime_verifier.push_back(ct);
 			}
 			else if(server_readMsg.header.type == 403){
-				// Deciede on S
-				mpz_class randomS(1);
-				//				mpz_class randomS = deck->secretRandomR(deck->pk.p);
+
+				deliver_to_Server("Proove it",410);
+			}
+
+
+			else if(server_readMsg.header.type == 410){
+				piPrime_Prover = new PermutationClass(deck->deckVector.size()); //this is pi'
+				cout << "pi prime is: " << std::endl;
+				for(auto i = piPrime_Prover->map.begin() ; i != piPrime_Prover->map.end(); i++) {
+					cout << *i << "  ";
+				}
+				cout << std::endl;
+				rPrime_Prover = deck->generateSecretRandomRVector(deck->pk.p,deck->deckVector.size()); //this is r prime
+				cout << "rPrimeVector is: " << std::endl;
+
+				for(auto i = rPrime_Prover.begin() ; i != rPrime_Prover.end(); i++) {
+					cout << *i << "  " << std::endl;
+				}
+
+				cPrime_prover = c_prover;
+				deck->permutationShuffle(cPrime_prover,piPrime_Prover->map);
+				deck->re_mask_elGamal_deck(deck->pk,cPrime_prover,rPrime_Prover);
+				cout << "------ Content of C' is " << std::endl;
+
+				for(auto i = cPrime_prover.begin() ; i != cPrime_prover.end(); i++) {
+					cout << *i << std::endl;
+					deliver_to_Server(i->c_1.get_str(10),420);
+					deliver_to_Server(i->c_2.get_str(10),421);
+
+				}
+				cout << "------ 1- COMMITMENT STARTS C' IS SENT------" << std::endl;
+
+				deliver_to_Server("Sending c' completed", 422);
+
+			}
+
+			else if(server_readMsg.header.type == 420){
+				c1 = server_readMsg.data;
+
+			}
+			else if(server_readMsg.header.type == 421){
+				c2 = server_readMsg.data;
+				//				cout << "Received c2 is : " <<  server_readMsg.data << std::endl;
+				mpz_class cOne(c1);
+				mpz_class cTwo(c2);
+				CipherText ct(cOne,cTwo);
+				cPrime_Verifier.push_back(ct);
+			}
+			else if(server_readMsg.header.type == 422){
+				cout << "-----------------2 - C' recieved sending random S-----------------"<< std::endl;
+				cout << "------------------------ CONTENT C' IS ---------------"<< std::endl;
+				for(auto i = cPrime_Verifier.begin() ; i != cPrime_Verifier.end(); i++) {
+					cout << *i << std::endl;
+				}
+
+				mpz_class randomS = deck->secretRandomR(deck->pk.p);
 				//				randomS = randomS % 2;
+				randomS = 1;
 
 				deliver_to_Server(randomS.get_str(10),404);
 			}
 
+
 			else if(server_readMsg.header.type == 404){
 				mpz_class randomSTemp(server_readMsg.data);
+
+
 				if(randomSTemp == 0) {
-					cout << "-*-*-*-*- Sending RPRIME IS : "  << std::endl;
-					for(auto i = rPrimeVector.begin(); i!= rPrimeVector.end();i++){
+					//					cout << "-*-*-*-*---------- r' IS --------: "  << std::endl;
+					for(auto i = rPrime_Prover.begin(); i!= rPrime_Prover.end();i++){
 						cout<< (*i) << std::endl;
 						deliver_to_Server((*i).get_str(10),405);
 					}
-					deliver_to_Server("Sending r prime completed",415);
+					cout << "------3.A sending r' and pi'------" << std::endl;
 
-					for(auto i = tempPermuatationClassForZKIP->map.begin(); i != tempPermuatationClassForZKIP->map.end() ; i++) {
+					deliver_to_Server("Sending r' completed",415);
+
+					for(auto i = piPrime_Prover->map.begin(); i != piPrime_Prover->map.end() ; i++) {
 						mpz_class fromSize_tToMpz (*i);
 						deliver_to_Server(fromSize_tToMpz.get_str(10),406);
 					}
 					deliver_to_Server("Sending pi' completed", 407);
 				}
 				else if (randomSTemp == 1) {
-					PermutationClass piDoublePrime(deck->deckVector.size());
-					piDoublePrime.map = tempPermuatationClassForZKIP->rmap;
-					piDoublePrime.rmap = tempPermuatationClassForZKIP->map;
-					deck->permutationShuffle(piDoublePrime.map, deck->permutationClass->map);
 
+					PermutationClass piDoublePrime(cPrime_prover.size());
+					piDoublePrime.map = piPrime_Prover->rmap;
+					piDoublePrime.rmap = piPrime_Prover->map;
+					deck->permutationShuffle(piDoublePrime.map, pi_Prover->map);
 
-
-					vector<mpz_class> rDoublePrimeVector;
-					vector<mpz_class> tempRprimeVector = rPrimeVector;
-					deck->permutationShuffle(tempRprimeVector, piDoublePrime.map);
+					vector<mpz_class> rDoublePrime_Prover;
+					vector<mpz_class> tempRprimeCombinedWithPiDoublePrime = rPrime_Prover;
+					deck->permutationShuffle(tempRprimeCombinedWithPiDoublePrime, piDoublePrime.map);
 					int j = 0;
-					for(auto i = tempRprimeVector.begin(); i!= tempRprimeVector.end();i++){
-						cout << "r: " << rVectorForInitiatior[j] << " r'PermutatedwithpiDoublePrime :" << (*i) << "substitution : " << rVectorForInitiatior[j] - (*i) << std::endl;
-						rDoublePrimeVector.push_back(rVectorForInitiatior[j] - (*i));
+					for(auto i = r_prover.begin(); i!= r_prover.end();i++){
+						//						cout << "r: " << rVectorForInitiatior[j] << " r'PermutatedwithpiDoublePrime :" << (*i) << "substitution : " << rVectorForInitiatior[j] - (*i) << std::endl;
+						rDoublePrime_Prover.push_back( (*i) - tempRprimeCombinedWithPiDoublePrime[j]);
 						j++;
 					}
-					cout << "------ R Double prime is :" <<  std::endl;
+					//					cout << "------ R Double prime is :" <<  std::endl;
 
 
-					for(auto i = rDoublePrimeVector.begin(); i!= rDoublePrimeVector.end();i++){
-						cout<< (*i) << " ";
+					for(auto i = rDoublePrime_Prover.begin(); i!= rDoublePrime_Prover.end();i++){
+						//						cout<< (*i) << " ";
 						deliver_to_Server((*i).get_str(10),408);
 					}
-					cout << "Sending r'' completed " <<std::endl;
-					deliver_to_Server("Sending r double prime Completed!",418);
 
+					//					cout << "Sending r'' completed " <<std::endl;
 
-					cout << "------ Content of Pi Double prime is " << std::endl;
+					//					cout << "------ Content of Pi Double prime is " << std::endl;
 					for(auto i = piDoublePrime.map.begin(); i!= piDoublePrime.map.end();i++){
 						mpz_class fromSize_tToMpz (*i);
-						cout << "pi'' :" <<  fromSize_tToMpz.get_str(10) << " ";
+						//						cout << "pi'' :" <<  fromSize_tToMpz.get_str(10) << " ";
 						deliver_to_Server(fromSize_tToMpz.get_str(10),409);
 					}
-					cout << "Sending pi'' completed " <<std::endl;
-					deliver_to_Server("Sending Completed!",410);
+					//					cout << "Sending pi'' completed " <<std::endl;
+
+
+					vector<CipherText> cThatMustBeEqualToCDoublePrimeInTheEnd = cPrime_prover;
+
+
+					deck->permutationShuffle(cThatMustBeEqualToCDoublePrimeInTheEnd,piDoublePrime.map);
+					deck->re_mask_elGamal_deck(deck->pk,cThatMustBeEqualToCDoublePrimeInTheEnd,rDoublePrime_Prover);
+					cout<< "********------------------- Pi'' and R'' apllied on c' "<< std::endl;
+					for(auto i = cThatMustBeEqualToCDoublePrimeInTheEnd.begin(); i!= cThatMustBeEqualToCDoublePrimeInTheEnd.end();i++){
+						cout<< (*i) << std::endl;
+					}
+
+					cout<< "********------------------- c'' ---------------------- "<< std::endl;
+					for(auto i = cDoublePrime_prover.begin(); i!= cDoublePrime_prover.end();i++){
+						cout<< (*i) << std::endl;
+					}
+
+
+
+					cout << "------3.B sending r'' and pi''------" << std::endl;
+
+					deliver_to_Server("Sending Completed!",440);
 
 
 
@@ -609,33 +852,39 @@ public:
 			else if(server_readMsg.header.type == 405){
 				mpz_class receivedrPrime(server_readMsg.data);
 				receivedRPrimeVector.push_back(receivedrPrime);
-				std::cout << "Received r' :  " <<  server_readMsg.data << std::endl;
+				//				std::cout << "Received r' :  " <<  server_readMsg.data << std::endl;
 
 			}
 			else if(server_readMsg.header.type == 406){
 				size_t tmpSize_t = 0;
 				sscanf(server_readMsg.data.c_str(),"%zu", &tmpSize_t);
 				recievedPiPrimeVector.push_back(tmpSize_t);
-				std::cout << "Received pi' :  " <<  tmpSize_t << " ";
+				//				std::cout << "Received pi' :  " <<  tmpSize_t << " ";
 
 
 			}
 			else if(server_readMsg.header.type == 407){
+				cout << "-------------------received pi' and r' -------------" << std::endl;
+
+				cout << "-------------------4.A case 1: s=0--------------" << std::endl;
 				std::cout << "Received pi' completed" << std::endl;
-				vector<CipherText> secondTempDeck = deck->deckVector;
-				deck->permutationShuffle(secondTempDeck,recievedPiPrimeVector);
-				deck->re_mask_elGamal_deck(deck->pk,secondTempDeck,receivedRPrimeVector);
+				deck->generateCardsAndPutIntoDeck();
+				c_verifier = deck->deckVector;
+				vector<CipherText> c_appliedByRprimeandPiPrime_verifier;
+				c_appliedByRprimeandPiPrime_verifier = c_verifier;
+				deck->permutationShuffle(c_appliedByRprimeandPiPrime_verifier,recievedPiPrimeVector);
+				deck->re_mask_elGamal_deck(deck->pk,c_appliedByRprimeandPiPrime_verifier,receivedRPrimeVector);
 				cout << "-------------------------COMPARISON -- content OF C' ----------------------" << std::endl;
-				for(auto i = secondTempDeck.begin(); i!= secondTempDeck.end();i++){
+				for(auto i = cPrime_Verifier.begin(); i!= cPrime_Verifier.end();i++){
 					cout << (*i) << std::endl;
 				}
-				cout << "-------------------------COMPARISON -- content OF C ----------------------" << std::endl;
-				for(auto i = shuffledDeckVectorTemp.begin(); i!= shuffledDeckVectorTemp.end();i++){
+				cout << "-------------------------COMPARISON -- c applied r' and pi' ----------------------" << std::endl;
+				for(auto i = c_appliedByRprimeandPiPrime_verifier.begin(); i!= c_appliedByRprimeandPiPrime_verifier.end();i++){
 					cout << (*i) << std::endl;
 				}
 
 				bool cheatDetected = false;
-				for(auto i = secondTempDeck.begin(), j = shuffledDeckVectorTemp.begin(); i!= secondTempDeck.end() && j!= shuffledDeckVectorTemp.end();i++ , j++){
+				for(auto i = cPrime_Verifier.begin(), j = c_appliedByRprimeandPiPrime_verifier.begin(); i!= cPrime_Verifier.end() && j!= c_appliedByRprimeandPiPrime_verifier.end();i++ , j++){
 					if((*j).c_1 != (*i).c_1 && (*j).c_2 != (*i).c_2) {
 						cheatDetected = true;
 					}
@@ -652,40 +901,42 @@ public:
 			}
 			else if(server_readMsg.header.type == 408){
 				mpz_class recievedRDoublePrime (server_readMsg.data);
-				recievedRDoublePrimeVector.push_back(recievedRDoublePrime);
-				std::cout << "Received r'' :  " <<  server_readMsg.data << std::endl;
+				RDouble_Verifier.push_back(recievedRDoublePrime);
+				//				std::cout << "Received r'' :  " <<  server_readMsg.data << std::endl;
 			}
 			else if(server_readMsg.header.type == 409){
 				size_t tmpSize_t = 0;
 				sscanf(server_readMsg.data.c_str(),"%zu", &tmpSize_t);
 				recievedPiDoublePrimeVector.push_back(tmpSize_t);
-				std::cout << "Received pi'' :  " <<  tmpSize_t << " ";
+				//				std::cout << "Received pi'' :  " <<  tmpSize_t << " ";
 			}
 
-			else if(server_readMsg.header.type == 410){
-				std::cout << "Received pi'' completed" << std::endl;
-				vector<CipherText> secondTempDeck = shuffledDeckVectorTemp;
-				cout <<"----------------C' before remask and permutate------------------\n";
-				for(auto i = secondTempDeck.begin(); i != secondTempDeck.end(); i++){
-					CipherText citext = deck->finalize_unmask_elGamal(deck->pk,*i);
-					cout << citext << std::endl;
-				}
+			else if(server_readMsg.header.type == 440){
+				cout << "-------------------4.B case 2: s=1--------------" << std::endl;
+
+				//				std::cout << "Received pi'' completed" << std::endl;
+				vector<CipherText> secondTempDeck = cPrime_Verifier;
+				cout <<"----------------C' before remask and repermutate------------------\n";
+				//				for(auto i = secondTempDeck.begin(); i != secondTempDeck.end(); i++){
+				//					CipherText citext = deck->finalize_unmask_elGamal(deck->pk,*i);
+				//					cout << citext << std::endl;
+				//				}
 				deck->permutationShuffle(secondTempDeck,recievedPiDoublePrimeVector);
-				deck->re_mask_elGamal_deck(deck->pk,secondTempDeck,recievedRDoublePrimeVector);
+				deck->re_mask_elGamal_deck(deck->pk,secondTempDeck,RDouble_Verifier);
 
 
-				cout << "-------------------------COMPARISON -- content OF C'' ----------------------" << std::endl;
+				cout << "-------------------------COMPARISON -- content OF deck applied by pi'' and r'' ----------------------" << std::endl;
 				for(auto i = secondTempDeck.begin(); i!= secondTempDeck.end();i++){
 					cout << (*i) << std::endl;
 				}
-				cout << "-------------------------COMPARISON -- content OF C ----------------------" << std::endl;
-				for(auto i = deck->deckVector.begin(); i!= deck->deckVector.end();i++){
+				cout << "-------------------------COMPARISON -- content OF C'' ----------------------" << std::endl;
+				for(auto i = cDoublePrime_verifier.begin(); i!= cDoublePrime_verifier.end();i++){
 					cout << (*i) << std::endl;
 				}
 
 				bool cheatDetected = false;
-				for(auto i = secondTempDeck.begin(), j = deck->deckVector.begin(); i!= secondTempDeck.end() && j!=  deck->deckVector.end();i++ , j++){
-					if((*j).c_1 != (*i).c_1 && (*j).c_2 != (*i).c_2) {
+				for(auto i = secondTempDeck.begin(), j = cDoublePrime_verifier.begin(); i!= secondTempDeck.end() && j!=  cDoublePrime_verifier.end();i++ , j++){
+					if((*j).c_1 != (*i).c_1 || (*j).c_2 != (*i).c_2) {
 						cheatDetected = true;
 					}
 				}
@@ -699,9 +950,7 @@ public:
 			else if(server_readMsg.header.type == 415){
 				std::cout << "Receiveing r' Completed" << std::endl;
 			}
-			else if(server_readMsg.header.type == 418){
-				std::cout << "Receiveing r'' Completed" << std::endl;
-			}
+
 			/*
 			 * ZERO KNOWLEDGE INTERACTIVE PROOF FOR CORRECT SHUFFLING - END
 			 */
@@ -719,7 +968,7 @@ public:
 		//		string portNo;
 		//		cin >> portNo;
 		//		cout << "Resolving " << portNoGlobal << std::endl;
-		tcp::resolver::query query("localhost", portNoGlobal);
+		tcp::resolver::query query("localhost", outGoingConnection);
 		client_resolver.async_resolve(query,
 				boost::bind(&game_session::client_handle_resolve, shared_from_this(),
 						boost::asio::placeholders::error,
@@ -763,6 +1012,7 @@ public:
 	 * whole vector was taken to shuffle = 203
 	 * send masked c1 to all peers to syncronize = 204
 	 * send masked c2 to  all peers to syncronize = 205
+	 * whole vector was taken to shuffle = 206
 	 * Completed all encrypted cards same all in each peer with same order = 206
 	 * unmask and reverse shuffle operation c1 = 301
 	 * unmask and reverse shuffle operation c2 = 302
@@ -778,6 +1028,7 @@ public:
 	 * proving correct shuffle zero knowledge interactive proof - sending r' completed = 415
 	 * proving correct shuffle zero knowledge interactive proof - sending pi' = 406
 	 * proving correct shuffle zero knowledge interactive proof - sending pi' completed = 407
+	 * node asks for proof = 410
 	 * proving correct shuffle zero knowledge interactive proof - sending r''  = 418
 	 * proving correct shuffle zero knowledge interactive proof - sending r'' completed = 418
 	 *
@@ -810,7 +1061,6 @@ public:
 			cout << "ERROR: sendHead" << std::endl;
 		} else {
 			msg_t &msg = client_sendQueue.front();
-
 			boost::asio::async_write(client_socket,
 					boost::asio::buffer(msg.data),
 					boost::bind(&game_session::client_handle_sendMsg, shared_from_this(),
@@ -873,8 +1123,8 @@ public:
 
 	void client_handle_readMsg(const boost::system::error_code& err) {
 		if (err) {
-					cout << "ERROR: readHead" << std::endl;
-				}
+			cout << "ERROR: readHead" << std::endl;
+		}
 		else {
 			cout << " -----------------A MESSAGE TAKEN AS A CLIENT ------------" << std::endl;
 			cout << client_readMsg.data;
@@ -902,14 +1152,15 @@ int main(int argc, char** argv) {
 
 
 	cout << "Enter port number to open: ";
-	int portNumber;
-	cin >> portNumber;
+	int incomingConnection;
+	cin >> incomingConnection;
 
 	cout << "Enter port number to connect: ";
-	cin >> portNoGlobal;
+	cin >> outGoingConnection;
 
 
-	tcp::endpoint endpoint(tcp::v4(), portNumber);
+	tcp::endpoint endpoint(tcp::v4(), incomingConnection);
+
 	game_session_ptr new_session(new game_session(io_service, endpoint));
 	new_session->server_accept();
 	new_session->client_schedule_connect();
@@ -920,10 +1171,12 @@ int main(int argc, char** argv) {
 	int controllerInput = 9;
 	cout<<"\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<endl;
 	cout<<"Press appropriate key:"<<endl;
-	cout<<"Press 1 to Shuffle with Multiple players. Prove in the end!"<<endl;
-	cout<<"Press 2 to Create Deck and agree on secret key. " <<endl;
-	cout<<"Press 3 to Zero Knowledge Interactive Proof. "<<endl;
-	cout<<"Press 8 to Send chat messages!. "<<endl;
+	cout<<"Press 1 to Shuffle with Multiple players."<<endl;
+	cout<<"Press 2 to Prove correct shuffling in between two nodes. " <<endl;
+	cout<<"Press 3 to Prove correct Re-Encryption in between two nodes. "<<endl;
+	cout<<"Press 4 to Correct Masking and Shuffling internally!. "<<endl;
+	cout<<"Press 5 to Mask & Shuffle then Unmask & Unshuffle internally!. "<<endl;
+
 
 	cout<<"Press 0 to Terminate "<<endl;
 	cout<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<endl;
@@ -937,7 +1190,145 @@ int main(int argc, char** argv) {
 			new_session->deliver_to_Server("ready",2);
 
 		}
-		else if (controllerInput == 2) {
+
+		if (controllerInput == 2) {
+			readySent = true;
+			isInitiator = true;
+			operationController = 2;
+			new_session->deliver_to_Server("ready",2);
+
+		}
+
+		else if (controllerInput == 3) {
+			readySent = true;
+			isInitiator = true;
+			operationController = 3;
+			new_session->deliver_to_Server("ready",2);
+		}
+		else if (controllerInput == 4) {
+
+
+
+			try	{
+				DeckAndOperations * deck  = new DeckAndOperations;
+				deck->generateCardsAndPutIntoDeck();
+
+				vector<CipherText> c = deck->deckVector;
+				PermutationClass  pi(deck->deckVector.size());
+				//				pi.makePi();
+
+				vector<CipherText> cDoublePrime = c;
+				deck->permutationShuffle(cDoublePrime, pi.map);
+				vector<mpz_class>  r = deck->generateSecretRandomRVector(deck->pk.p, cDoublePrime.size());
+
+				deck->re_mask_elGamal_deck(deck->pk,cDoublePrime, r);
+
+
+				vector<CipherText> cPrime = c;
+				vector<mpz_class>  rPrime = deck->generateSecretRandomRVector(deck->pk.p, cPrime.size());;
+				PermutationClass  piPrime(cPrime.size());
+				//				piPrime.makePiPrime();
+				deck->permutationShuffle(cPrime,piPrime.map);
+				deck->re_mask_elGamal_deck(deck->pk, cPrime, rPrime);
+
+
+
+				PermutationClass  piDoublePrime(cPrime.size());
+				piDoublePrime.map = piPrime.rmap;
+				piDoublePrime.rmap = piPrime.map;
+
+				deck->permutationShuffle(piDoublePrime.map,pi.map);
+				cout << "\n------pi --------\n";
+				for(auto i = pi.map.begin(); i != pi.map.end(); i++){
+					cout << (*i) << " ";
+				}
+				cout << "\n------pi' --------\n";
+				for(auto i = piPrime.map.begin(); i != piPrime.map.end(); i++){
+					cout << (*i) << " ";
+				}
+				cout << "\n------pi' -1 ------ \n";
+				for(auto i = piPrime.rmap.begin(); i != piPrime.rmap.end(); i++){
+					cout << (*i) << " ";
+				}
+
+				cout << "\n------pi'' --------\n";
+				for(auto i = piDoublePrime.map.begin(); i != piDoublePrime.map.end(); i++){
+					cout << (*i) << " ";
+				}
+				vector<mpz_class>  rDoublePrime;
+				vector<mpz_class>  tempRPrimeCombinedWithPiDoublePrime = rPrime;
+				deck->permutationShuffle(tempRPrimeCombinedWithPiDoublePrime,piDoublePrime.map);
+
+
+				int j = 0;
+				for(auto i = r.begin(); i!= r.end();i++){
+					rDoublePrime.push_back((*i) - tempRPrimeCombinedWithPiDoublePrime[j]);
+					j++;
+				}
+
+
+				cout << "\n------r --------\n";
+				for(auto i = r.begin(); i != r.end(); i++){
+					cout << (*i) << std::endl;
+				}
+				cout << "\n------r' --------\n";
+				for(auto i = rPrime.begin(); i != rPrime.end(); i++){
+					cout << (*i) << std::endl;
+				}
+
+				cout << "\n------r'' --------\n";
+				for(auto i = rDoublePrime.begin(); i != rDoublePrime.end(); i++){
+					cout << (*i) << std::endl;
+				}
+
+
+
+
+				vector<CipherText> cThatMustBeEqualToCDoublePrimeInTheEnd = cPrime;
+
+				deck->permutationShuffle(cThatMustBeEqualToCDoublePrimeInTheEnd,piDoublePrime.map);
+				deck->re_mask_elGamal_deck(deck->pk,cThatMustBeEqualToCDoublePrimeInTheEnd,rDoublePrime);
+
+
+
+				cout << "\n------C --------\n";
+				for(auto i = c.begin(); i != c.end(); i++){
+					cout << (*i)<< std::endl;
+				}
+
+
+				cout << "\n------C' --------\n";
+				for(auto i = cPrime.begin(); i != cPrime.end(); i++){
+					cout << (*i)<< std::endl;
+				}
+
+				cout << "\n------C'' --------\n";
+				for(auto i = cDoublePrime.begin(); i != cDoublePrime.end(); i++){
+					cout << (*i)<< std::endl;
+				}
+
+				cout << "\n----------set of cards applied by piDoublePrime and rDoublePrime on top of c'-------\n";
+
+				for(auto i = cThatMustBeEqualToCDoublePrimeInTheEnd.begin(); i != cThatMustBeEqualToCDoublePrimeInTheEnd.end(); i++){
+					cout << (*i) << std::endl;
+				}
+
+
+
+
+
+
+				sleep(1);
+
+			}
+			catch (std::exception& e)
+			{
+				std::cerr << "Exception: " << e.what() << "\n";
+			}
+
+		}
+
+		else if (controllerInput == 5) {
 
 
 
@@ -1014,127 +1405,7 @@ int main(int argc, char** argv) {
 
 			//			}
 		}
-
-		else if (controllerInput == 3) {
-
-
-
-			try	{
-				DeckAndOperations * deck  = new DeckAndOperations;
-				deck->generateCardsAndPutIntoDeck();
-
-				vector<CipherText> c = deck->deckVector;
-				PermutationClass  pi(deck->deckVector.size());
-				pi.makePi();
-
-				vector<CipherText> cDoublePrime = c;
-				deck->permutationShuffle(cDoublePrime, pi.map);
-				vector<mpz_class>  r = deck->generateSecretRandomRVector(deck->pk.p, cDoublePrime.size());
-
-				deck->re_mask_elGamal_deck(deck->pk,cDoublePrime, r);
-
-
-				vector<CipherText> cPrime = c;
-				vector<mpz_class>  rPrime = deck->generateSecretRandomRVector(deck->pk.p, cPrime.size());;
-				PermutationClass  piPrime(cPrime.size());
-				piPrime.makePiPrime();
-				deck->permutationShuffle(cPrime,piPrime.map);
-				deck->re_mask_elGamal_deck(deck->pk, cPrime, rPrime);
-
-
-
-				PermutationClass  piDoublePrime(cPrime.size());
-				piDoublePrime.map = piPrime.rmap;
-				piDoublePrime.rmap = piPrime.map;
-
-				deck->permutationShuffle(piDoublePrime.map,pi.map);
-				cout << "\n------pi --------\n";
-				for(auto i = pi.map.begin(); i != pi.map.end(); i++){
-					cout << (*i) << " ";
-				}
-				cout << "\n------pi' --------\n";
-				for(auto i = piPrime.map.begin(); i != piPrime.map.end(); i++){
-					cout << (*i) << " ";
-				}
-				cout << "\n------pi' -1 ------ \n";
-				for(auto i = piPrime.rmap.begin(); i != piPrime.rmap.end(); i++){
-					cout << (*i) << " ";
-				}
-
-				cout << "\n------pi'' --------\n";
-				for(auto i = piDoublePrime.map.begin(); i != piDoublePrime.map.end(); i++){
-					cout << (*i) << " ";
-				}
-				vector<mpz_class>  rDoublePrime;
-				vector<mpz_class>  tempRPrimeCombinedWithPiDoublePrime = rPrime;
-				deck->permutationShuffle(tempRPrimeCombinedWithPiDoublePrime,piDoublePrime.map);
-
-
-				int j = 0;
-				for(auto i = r.begin(); i!= r.end();i++){
-					rDoublePrime.push_back((*i) - tempRPrimeCombinedWithPiDoublePrime[j]);
-					j++;
-				}
-
-
-				cout << "\n------r --------\n";
-				for(auto i = r.begin(); i != r.end(); i++){
-					cout << (*i) << std::endl;
-				}
-				cout << "\n------r' --------\n";
-				for(auto i = rPrime.begin(); i != rPrime.end(); i++){
-					cout << (*i) << std::endl;
-				}
-
-				cout << "\n------r'' --------\n";
-				for(auto i = rDoublePrime.begin(); i != rDoublePrime.end(); i++){
-					cout << (*i) << std::endl;
-				}
-
-				vector<CipherText> cThatMustBeEqualToCDoublePrimeInTheEnd = cPrime;
-
-				deck->permutationShuffle(cThatMustBeEqualToCDoublePrimeInTheEnd,piDoublePrime.map);
-				deck->re_mask_elGamal_deck(deck->pk,cThatMustBeEqualToCDoublePrimeInTheEnd,rDoublePrime);
-
-
-
-				cout << "\n------C --------\n";
-				for(auto i = c.begin(); i != c.end(); i++){
-					cout << (*i)<< std::endl;
-				}
-
-
-				cout << "\n------C' --------\n";
-				for(auto i = cPrime.begin(); i != cPrime.end(); i++){
-					cout << (*i)<< std::endl;
-				}
-
-				cout << "\n------C'' --------\n";
-				for(auto i = cDoublePrime.begin(); i != cDoublePrime.end(); i++){
-					cout << (*i)<< std::endl;
-				}
-
-				cout << "\n----------set of cards applied by piDoublePrime and rDoublePrime on top of c'-------\n";
-
-				for(auto i = cThatMustBeEqualToCDoublePrimeInTheEnd.begin(); i != cThatMustBeEqualToCDoublePrimeInTheEnd.end(); i++){
-					cout << (*i) << std::endl;
-				}
-
-
-
-
-
-
-				sleep(1);
-
-			}
-			catch (std::exception& e)
-			{
-				std::cerr << "Exception: " << e.what() << "\n";
-			}
-
-		}
-		else if (controllerInput == 5) {
+		else if (controllerInput == 6) {
 			DeckAndOperations * deck  = new DeckAndOperations;
 			deck->generateCardsAndPutIntoDeck();
 			PermutationClass p1(deck->deckVector.size(),true);
@@ -1144,60 +1415,197 @@ int main(int argc, char** argv) {
 			deck->permutationShuffle(deck->deckVector,p1.map);
 			deck->permutationShuffle(deck->deckVector,p2.map);
 			deck->permutationShuffle(deck->deckVector,p3.map);
-//			deck->permutationShuffle(deck->deckVector,p4.map);
+			//			deck->permutationShuffle(deck->deckVector,p4.map);
 			deck->permutationShuffle(deck->deckVector,p1.map);
 			deck->permutationShuffle(deck->deckVector,p2.map);
 			deck->permutationShuffle(deck->deckVector,p3.map);
-//			deck->permutationShuffle(deck->deckVector,p4.map);
+			//			deck->permutationShuffle(deck->deckVector,p4.map);
 
 			for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
 				cout << (*i)<< std::endl;
 			}
 
 		}
+		else if (controllerInput == 7) {
+			DeckAndOperations * deck = new DeckAndOperations;
+			deck->generateCardsAndPutIntoDeck();
+			CipherText cOne, cTwo;
+			cOne = deck->deckVector.at(0);
+			cTwo = deck->deckVector.at(0);
+			cOne = deck->mask_elGamal(deck->pk, cOne, NULL);
+			mpz_class rPrime = deck->secretRandomR(deck->pk.p);
+
+			cout << "--------------c1----------------"<< std::endl;
+			cout << cOne << std::endl;
+
+			cTwo = deck->mask_elGamal(deck->pk, cTwo, &rPrime);
+			cout << "--------------c2'----------------"<< std::endl;
+			cout << cTwo << std::endl;
+
+			mpz_class aTwoInvert(cTwo.c_1);
+			mpz_invert(aTwoInvert.get_mpz_t(),aTwoInvert.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			cout << "--------------a1 / a2----------------"<< std::endl;
+			cout << cOne.c_1/cTwo.c_1 << std::endl;
+
+			cout << "-------------a1 * aTwoInvert----------------"<< std::endl;
+			cout << cOne.c_1*aTwoInvert%deck->pk.p << std::endl;
+
+			cout << "--------------r'----------------"<< std::endl;
+			cout << rPrime << std::endl;
+			mpz_class mDoublePrime ;
+			mpz_class rTriplePrime = deck->secretRandomR(deck->pk.p);
+
+			cout << "--------------r'''----------------"<< std::endl;
+			cout << rTriplePrime << std::endl;
+			mpz_powm(mDoublePrime.get_mpz_t(), deck->pk.g.get_mpz_t(), rTriplePrime.get_mpz_t(), deck->pk.p.get_mpz_t());
+
+			mpz_class rDoublePrime = deck->secretRandomR(deck->pk.p);
+			mpz_class g_To_rDoublePRime;
+			mpz_powm(g_To_rDoublePRime.get_mpz_t(), deck->pk.g.get_mpz_t(), rDoublePrime.get_mpz_t(),deck->pk.p.get_mpz_t());
+			cout << "--------------r''----------------"<< std::endl;
+			cout << rDoublePrime << std::endl;
+			cout << "--------------g^r''----------------"<< std::endl;
+			cout << g_To_rDoublePRime << std::endl;
+			mpz_class g_To_XRDoublePRime = deck->getEncryptedSecret();
+			mpz_powm(g_To_XRDoublePRime.get_mpz_t(), g_To_XRDoublePRime.get_mpz_t(), rDoublePrime.get_mpz_t(),deck->pk.p.get_mpz_t());
+			cout << "--------------g^xa r''----------------"<< std::endl;
+			cout << g_To_XRDoublePRime << std::endl;
+
+
+			mpz_class bTwoInvert(cTwo.c_2);
+			mpz_invert(bTwoInvert.get_mpz_t(),bTwoInvert.get_mpz_t(),deck->pk.p.get_mpz_t());
+			CipherText cThree((cOne.c_1* aTwoInvert *g_To_rDoublePRime)%deck->pk.p ,( mDoublePrime* cOne.c_2 * bTwoInvert * g_To_XRDoublePRime) %deck->pk.p);
+
+			cout << "--------------a3,b3----------------"<< std::endl;
+			cout << cThree << std::endl;
+
+			cout << "------------Xa-------------" << std::endl;
+			cout << deck->getSecretKey()<< std::endl;
+
+			CipherText mPrimeCT = deck->finalize_unmask_elGamal(deck->pk, cThree);
+			mpz_class mPrime = mPrimeCT.c_1 * mPrimeCT.c_2;
+			cout << "------------m'-------------" << std::endl;
+			cout << mPrimeCT<< std::endl;
+
+
+
+			cout << "------------m''-------------" << std::endl;
+			cout << mDoublePrime<< std::endl;
+
+			mpz_class g_To_rTriplePrime;
+			mpz_powm(g_To_rTriplePrime.get_mpz_t(), deck->pk.g.get_mpz_t(), rTriplePrime.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			cout << "------------g^r'''-------------" << std::endl;
+			cout << g_To_rTriplePrime<< std::endl;
+
+		}
+
+
+
+
+		else if (controllerInput == 8) {
+			DeckAndOperations * deck = new DeckAndOperations;
+			deck->generateCardsAndPutIntoDeck();
+			CipherText cOne, cTwo, cThree, cFour;
+			cOne = deck->deckVector.at(0);
+			cTwo = deck->deckVector.at(0);
+
+
+			mpz_class spk = deck->getEncryptedSecret();
+			mpz_class Xb = deck->secretRandomR(deck->pk.p);
+			mpz_powm(deck->Shared_Public_Key.get_mpz_t(), spk.get_mpz_t(), Xb.get_mpz_t(), deck->pk.p.get_mpz_t() );
+
+			mpz_class r = deck->secretRandomR(deck->pk.p);
+			cOne = deck->mask_elGamal_with_Secret_Key(deck->pk, cOne, &r);
+			mpz_class rPrime = deck->secretRandomR(deck->pk.p);
+			cTwo = deck->mask_elGamal(deck->pk, cTwo, &rPrime);
+
+			mpz_class rDoublePrime = deck->secretRandomR(deck->pk.p);
+			CipherText mPrime (deck->secretRandomR(deck->pk.p));
+			cThree = deck->mask_elGamal_with_Secret_Key(deck->pk, mPrime, &r);
+			cThree = deck->mask_elGamal_with_Secret_Key(deck->pk, cThree, &rDoublePrime);
+
+
+			cFour = deck->mask_elGamal(deck->pk, mPrime, &rPrime);
+			cFour = deck->mask_elGamal(deck->pk, cFour, &rDoublePrime);
+
+
+
+			cout << "------------b3-------------" << std::endl;
+			cout << cThree.c_2<< std::endl;
+			mpz_class mPrimeOverM = mPrime.c_2 / deck->deckVector.at(0).c_2;
+
+
+
+			mpz_class encryptedSecretOverRdoublePrime;
+			mpz_powm(encryptedSecretOverRdoublePrime.get_mpz_t(),spk.get_mpz_t(),rDoublePrime.get_mpz_t(), deck->pk.p.get_mpz_t());
+			mpz_class calculationForBThree = (cOne.c_2 *mPrimeOverM * encryptedSecretOverRdoublePrime) % deck->pk.p;
+			cout << "------------b1*m'/m*g^xar''-------------" << std::endl;
+
+			cout << calculationForBThree<< std::endl;
+
+
+
+
+
+			//			CipherText mPrimeCT = deck->finalize_unmask_elGamal(deck->pk, cThree);
+			//			mpz_class mPrime = mPrimeCT.c_1 * mPrimeCT.c_2;
+			//			cout << "------------m'-------------" << std::endl;
+			//			cout << mPrime<< std::endl;
+			//
+			//			cout << "------------m''-------------" << std::endl;
+			//			cout << mDoublePrime<< std::endl;
+			//
+			//			mpz_class g_To_rTriplePrime;
+			//			mpz_powm(g_To_rTriplePrime.get_mpz_t(), deck->pk.g.get_mpz_t(), rTriplePrime.get_mpz_t(),deck->pk.p.get_mpz_t());
+			//
+			//			cout << "------------g^r'''-------------" << std::endl;
+			//			cout << g_To_rTriplePrime<< std::endl;
+
+		}
+		else if (controllerInput == 9) {
+			DeckAndOperations * deck = new DeckAndOperations;
+			deck->generateCardsAndPutIntoDeck();
+			CipherText cTOne, cTTwo;
+			cTOne = deck->deckVector.at(0);
+			cTOne = deck->mask_elGamal_with_Secret_Key(deck->pk, cTOne, NULL);
+
+			mpz_class aOne = cTOne.c_1;
+			mpz_class aTwo;
+			mpz_powm(aTwo.get_mpz_t(),aOne.get_mpz_t(),deck->getSecretKey().get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			mpz_class aThree;
+			mpz_class r = deck->secretRandomR(deck->pk.p);
+			mpz_powm(aThree.get_mpz_t(),aOne.get_mpz_t(),r.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			mpz_class aFour;
+			mpz_powm(aFour.get_mpz_t(),aThree.get_mpz_t(),deck->getSecretKey().get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			mpz_class aOne_to_r;
+			mpz_powm(aOne_to_r.get_mpz_t(),aOne.get_mpz_t(),r.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			mpz_class aTwo_to_r;
+			mpz_powm(aTwo_to_r.get_mpz_t(),aTwo.get_mpz_t(),r.get_mpz_t(),deck->pk.p.get_mpz_t());
+
+			cout << "------------a1-------------" << std::endl;
+			cout << aOne<< std::endl;
+			cout << "------------a2-------------" << std::endl;
+			cout << aTwo<< std::endl;
+			cout << "------------a3-------------" << std::endl;
+			cout << aThree<< std::endl;
+			cout << "------------a4-------------" << std::endl;
+			cout << aFour<< std::endl;
+			cout << "------------a1^r-------------" << std::endl;
+			cout << aOne_to_r<< std::endl;
+			cout << "------------a2^r-------------" << std::endl;
+			cout << aTwo_to_r<< std::endl;
+
+		}
 	}
 
 
 
-	//    DeckAndOperations * deck  = new DeckAndOperations;
-	//    deck->generateCardsAndPutIntoDeck();
-	//    vector<int> permutatedVector;
-	//    vector<int> permutatedVectorTwo;
-	//    vector<int> permutatedVectorThree;
-	//
-	//
-	//    deck->permutationShuffle(&permutatedVector);
-	//    deck->permutationShuffle(&permutatedVectorTwo);
-	//    deck->permutationShuffle(&permutatedVectorThree);
-	//
-	//    cout << "----------------Begin-------------- \n";
-	//    vector<CardClass*> deckVector = deck->getDeck();
-	//    for(auto i = deckVector.begin(); i != deckVector.end(); i++){
-	//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
-	//        CipherText ct((*i)->id);
-	//
-	//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-	//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-	//
-	//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-	//
-	//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-	//
-	//        std::cout << ct << std::endl;
-	//        ct = deck->unmask_elGamal(deck->pk, ct);
-	//
-	//        std::cout << ct << std::endl;
-	//
-	//        //deck->decode(p,q,r,x,(*i)->id);
-	//    }
-	//    deck->reversePermutationShuffle(permutatedVectorThree);
-	//    deck->reversePermutationShuffle(permutatedVectorTwo);
-	//    deck->reversePermutationShuffle(permutatedVector);
-	//
-	//    vector<CardClass*> deckVectorTwo = deck->getDeck();
-	//    for(auto i = deckVectorTwo.begin(); i != deckVectorTwo.end(); i++){
-	//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
-	//    }
 
 
 	t.join();
