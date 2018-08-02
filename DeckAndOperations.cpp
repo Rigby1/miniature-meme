@@ -83,7 +83,6 @@ CipherText DeckAndOperations::mask_elGamal(const Public_Key &pk, const CipherTex
 	mpz_class g_to_r;
 	mpz_class y_to_r;
 
-	//	we don't need those lines anymore because y is shared public key
 	mpz_class y(Shared_Public_Key);
 	if(Shared_Public_Key == 0 || Shared_Public_Key == NULL) { // This is for single player runs
 		Shared_Public_Key = secretRandomR(pk.p);
@@ -112,7 +111,6 @@ CipherText DeckAndOperations::mask_elGamal_with_Secret_Key(const Public_Key &pk,
 	mpz_class g_to_r;
 	mpz_class y_to_r;
 
-	//	we don't need those lines anymore because y is shared public key
 	mpz_class y(Secret_Key);
 	if(Secret_Key == 0 || Secret_Key == NULL) { // This is for single player runs
 		Secret_Key = secretRandomR(pk.p);
@@ -218,13 +216,13 @@ mpz_class DeckAndOperations::contributeToSharedSecret(mpz_class inp) {
 
 
 mpz_class DeckAndOperations::generateP(const mpz_class &nbits) {
-		return mpz_class(19);
-//	return mpz_class("beb7ff0625cb71c1939bba00527bdf77de8b1d38a16edf5527a8d967eec39c4d77c21551362e915fb1ab6ae3b3075ae456f58bd31794e1bd1b4e99bdf12fb7c9", 16);
+//		return mpz_class(19);
+	return mpz_class("beb7ff0625cb71c1939bba00527bdf77de8b1d38a16edf5527a8d967eec39c4d77c21551362e915fb1ab6ae3b3075ae456f58bd31794e1bd1b4e99bdf12fb7c9", 16);
 }
 
 mpz_class DeckAndOperations::findGforP(const mpz_class &p){
-		return mpz_class(2);
-//	return mpz_class(7);
+//		return mpz_class(2);
+	return mpz_class(7);
 }
 
 

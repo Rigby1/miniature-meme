@@ -182,6 +182,7 @@ public:
 	PermutationClass * pi_Prover;
 	CipherText firstMessageCone, secondMessageCtwo, ProverCThree;
 	mpz_class randomS, mDoublePrimeProver , mPrimeProver, rTriplePrimeProver, mDoublePrimeVerifier,mPrimeVerifier;
+	mpz_class aOne, aTwo, aThree, aFour, r_for_correct_decryption;
 	vector<mpz_class>  rVectorForOthers, r_prover ,rPrime_Prover, receivedRPrimeVector, RDouble_Verifier;
 	void server_handle_readMsg(const boost::system::error_code& err) {
 		if (err) {
@@ -227,6 +228,25 @@ public:
 							deliver_to_Server(cOne.c_2.get_str(10),502);
 							deliver_to_Server(cTwo.c_1.get_str(10),503);
 							deliver_to_Server(cTwo.c_2.get_str(10),504);
+						}
+						else if(operationController == 4) {
+							DeckAndOperations * deck = new DeckAndOperations;
+							deck->generateCardsAndPutIntoDeck();
+							deliver_to_Server(deck->pk.p.get_str(10),600);
+							deliver_to_Server(deck->pk.g.get_str(10),601);
+
+							CipherText cTOne, cTTwo;
+							cTOne = deck->deckVector.at(0);
+							cTOne = deck->mask_elGamal_with_Secret_Key(deck->pk, cTOne, NULL);
+							aOne = cTOne.c_1;
+							mpz_powm(aTwo.get_mpz_t(),aOne.get_mpz_t(),deck->getSecretKey().get_mpz_t(),deck->pk.p.get_mpz_t());
+							cout << "---------------a1 a2 and xA-------------"<< std::endl;
+							cout << aOne <<std::endl;
+							cout << aTwo <<std::endl;
+							cout << deck->getSecretKey() <<std::endl;
+							cout << "---------------sending a1 and a2 to Verifier-------------"<< std::endl;
+							deliver_to_Server(aOne.get_str(10),602);
+							deliver_to_Server(aTwo.get_str(10),603);
 						}
 						else {
 							deliver_to_Server(deck->pk.p.get_str(10),101);
@@ -951,6 +971,84 @@ public:
 				std::cout << "Receiveing r' Completed" << std::endl;
 			}
 
+			else if(server_readMsg.header.type == 600){
+				deck->pk.p = server_readMsg.data;
+			}
+			else if(server_readMsg.header.type == 601){
+				deck->pk.g = server_readMsg.data;
+			}
+			else if(server_readMsg.header.type == 602){
+				aOne = server_readMsg.data;
+			}
+			else if(server_readMsg.header.type == 603){
+				aTwo = server_readMsg.data;
+
+				mpz_class r = deck->secretRandomR(deck->pk.p);
+				r_for_correct_decryption = r;
+
+				mpz_powm(aThree.get_mpz_t(),aOne.get_mpz_t(),r.get_mpz_t(),deck->pk.p.get_mpz_t());
+				cout << "------------------ a3 (a1^r)-------------"<< std::endl;
+				cout << aThree << std::endl;
+				cout << "------------------sending a3 to Prover-------------"<< std::endl;
+
+				deliver_to_Server(aThree.get_str(10),604);
+
+			}
+			else if(server_readMsg.header.type == 604){
+				aThree = server_readMsg.data;
+
+				mpz_powm(aFour.get_mpz_t(),aThree.get_mpz_t(),deck->getSecretKey().get_mpz_t(),deck->pk.p.get_mpz_t());
+
+				cout << "------------------ a4 (a3^x)-------------"<< std::endl;
+				cout << aFour << std::endl;
+				cout << "------------------sending a4 to Verifier-------------"<< std::endl;
+
+				deliver_to_Server(aFour.get_str(10),605);
+
+			}
+
+			else if(server_readMsg.header.type == 605){
+				aFour = server_readMsg.data;
+				deliver_to_Server(r_for_correct_decryption.get_str(10),606);
+
+				cout << "------------------ Check if a4 = a2^r-------------"<< std::endl;
+
+				mpz_class aTwoToR;
+				mpz_powm(aTwoToR.get_mpz_t(),aTwo.get_mpz_t(),r_for_correct_decryption.get_mpz_t(),deck->pk.p.get_mpz_t());
+				cout << "------------------ a4 -------------"<< std::endl;
+				cout << aFour << std::endl;
+				cout << "------------------ a2^r-------------"<< std::endl;
+				cout << aTwoToR << std::endl;
+				if(aTwoToR == aFour){
+					cout << "---------------CORRECT DECRYPTION PROVEN--------" <<std::endl;
+				}
+				else {
+					cout << "---------------a2^r != a4--------" <<std::endl;
+					cout << "---------------CHEAT DETECTED--------" <<std::endl;
+				}
+			}
+
+
+			else if(server_readMsg.header.type == 606){
+				r_for_correct_decryption = server_readMsg.data;
+
+				cout << "------------------ Check if a3 = a1^r-------------"<< std::endl;
+
+				mpz_class aOneToR;
+				mpz_powm(aOneToR.get_mpz_t(),aOne.get_mpz_t(),r_for_correct_decryption.get_mpz_t(),deck->pk.p.get_mpz_t());
+				cout << "------------------ a3 -------------"<< std::endl;
+				cout << aThree << std::endl;
+				cout << "------------------ a1^r-------------"<< std::endl;
+				cout << aOneToR << std::endl;
+				if(aOneToR == aThree){
+					cout << "---------------CORRECT DECRYPTION PROVEN--------" <<std::endl;
+				}
+				else {
+					cout << "---------------a1^r != a3--------" <<std::endl;
+					cout << "---------------CHEAT DETECTED--------" <<std::endl;
+				}
+			}
+
 			/*
 			 * ZERO KNOWLEDGE INTERACTIVE PROOF FOR CORRECT SHUFFLING - END
 			 */
@@ -1174,8 +1272,9 @@ int main(int argc, char** argv) {
 	cout<<"Press 1 to Shuffle with Multiple players."<<endl;
 	cout<<"Press 2 to Prove correct shuffling in between two nodes. " <<endl;
 	cout<<"Press 3 to Prove correct Re-Encryption in between two nodes. "<<endl;
-	cout<<"Press 4 to Correct Masking and Shuffling internally!. "<<endl;
-	cout<<"Press 5 to Mask & Shuffle then Unmask & Unshuffle internally!. "<<endl;
+	cout<<"Press 4 to Prove correct Decryption in between two nodes. "<<endl;
+	cout<<"Press 5 to Correct Masking and Shuffling internally!. "<<endl;
+	cout<<"Press 6 to Mask & Shuffle then Unmask & Unshuffle internally!. "<<endl;
 
 
 	cout<<"Press 0 to Terminate "<<endl;
@@ -1205,7 +1304,14 @@ int main(int argc, char** argv) {
 			operationController = 3;
 			new_session->deliver_to_Server("ready",2);
 		}
+
 		else if (controllerInput == 4) {
+			readySent = true;
+			isInitiator = true;
+			operationController = 4;
+			new_session->deliver_to_Server("ready",2);
+		}
+		else if (controllerInput == 5) {
 
 
 
@@ -1328,7 +1434,7 @@ int main(int argc, char** argv) {
 
 		}
 
-		else if (controllerInput == 5) {
+		else if (controllerInput == 6) {
 
 
 
@@ -1405,7 +1511,7 @@ int main(int argc, char** argv) {
 
 			//			}
 		}
-		else if (controllerInput == 6) {
+		else if (controllerInput == 7) {
 			DeckAndOperations * deck  = new DeckAndOperations;
 			deck->generateCardsAndPutIntoDeck();
 			PermutationClass p1(deck->deckVector.size(),true);
@@ -1426,7 +1532,7 @@ int main(int argc, char** argv) {
 			}
 
 		}
-		else if (controllerInput == 7) {
+		else if (controllerInput == 8) {
 			DeckAndOperations * deck = new DeckAndOperations;
 			deck->generateCardsAndPutIntoDeck();
 			CipherText cOne, cTwo;
@@ -1504,7 +1610,7 @@ int main(int argc, char** argv) {
 
 
 
-		else if (controllerInput == 8) {
+		else if (controllerInput == 9) {
 			DeckAndOperations * deck = new DeckAndOperations;
 			deck->generateCardsAndPutIntoDeck();
 			CipherText cOne, cTwo, cThree, cFour;
@@ -1564,7 +1670,7 @@ int main(int argc, char** argv) {
 			//			cout << g_To_rTriplePrime<< std::endl;
 
 		}
-		else if (controllerInput == 9) {
+		else if (controllerInput == 10) {
 			DeckAndOperations * deck = new DeckAndOperations;
 			deck->generateCardsAndPutIntoDeck();
 			CipherText cTOne, cTTwo;
