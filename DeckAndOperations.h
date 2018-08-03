@@ -200,6 +200,7 @@ public:
 	vector<CipherText> mask_elGamal_deck();
 //	vector<CipherText> mask_elGamal_masked_deck();
 	CipherText finalize_unmask_elGamal(const Public_Key &pk, const CipherText &ct);
+	CipherText unmask_elGamal_with_SecretKey(const Public_Key &pk, const CipherText &ct);
 //	void reversePermutationShuffle(PermutationClass *pClass);
 //	void reversePermutationShuffleForEncryptedVector(PermutationClass *pClass);
 //	void permutationShuffleForEncryptedVector(PermutationClass *pClass);

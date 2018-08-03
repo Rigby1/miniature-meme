@@ -776,8 +776,7 @@ public:
 				}
 
 				mpz_class randomS = deck->secretRandomR(deck->pk.p);
-				//				randomS = randomS % 2;
-				randomS = 1;
+				randomS = randomS % 2;
 
 				deliver_to_Server(randomS.get_str(10),404);
 			}
@@ -1274,7 +1273,9 @@ int main(int argc, char** argv) {
 	cout<<"Press 3 to Prove correct Re-Encryption in between two nodes. "<<endl;
 	cout<<"Press 4 to Prove correct Decryption in between two nodes. "<<endl;
 	cout<<"Press 5 to Correct Masking and Shuffling internally!. "<<endl;
-	cout<<"Press 6 to Mask & Shuffle then Unmask & Unshuffle internally!. "<<endl;
+	cout<<"Press 6 to Shuffle then Unshuffle internally!. "<<endl;
+	cout<<"Press 7 to Mask then Unmask internally!. "<<endl;
+
 
 
 	cout<<"Press 0 to Terminate "<<endl;
@@ -1469,35 +1470,6 @@ int main(int argc, char** argv) {
 				for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
 					cout << (*i) << " ";
 				}
-				//
-				//    cout << "----------------Begin-------------- \n";
-				//    vector<CardClass*> deckVector = deck->getDeck();
-				//    for(auto i = deckVector.begin(); i != deckVector.end(); i++){
-				//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
-				//        CipherText ct((*i)->id);
-				//
-				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-				//
-				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-				//
-				//        ct = deck->mask_elGamal(deck->pk, ct, NULL);
-				//
-				//        std::cout << ct << std::endl;
-				//        ct = deck->unmask_elGamal(deck->pk, ct);
-				//
-				//        std::cout << ct << std::endl;
-				//
-				//        //deck->decode(p,q,r,x,(*i)->id);
-				//    }
-				//    deck->reversePermutationShuffle(permutatedVectorThree);
-				//    deck->reversePermutationShuffle(permutatedVectorTwo);
-				//    deck->reversePermutationShuffle(permutatedVector);
-				//
-				//    vector<CardClass*> deckVectorTwo = deck->getDeck();
-				//    for(auto i = deckVectorTwo.begin(); i != deckVectorTwo.end(); i++){
-				//        gmp_printf ("%s is %Zd\n", "id", (*i)->id);
-				//    }
 
 
 				sleep(1);
@@ -1514,22 +1486,22 @@ int main(int argc, char** argv) {
 		else if (controllerInput == 7) {
 			DeckAndOperations * deck  = new DeckAndOperations;
 			deck->generateCardsAndPutIntoDeck();
-			PermutationClass p1(deck->deckVector.size(),true);
-			PermutationClass p2(deck->deckVector.size(),true);
-			PermutationClass p3(deck->deckVector.size(),true);
-			PermutationClass p4(deck->deckVector.size(),true);
-			deck->permutationShuffle(deck->deckVector,p1.map);
-			deck->permutationShuffle(deck->deckVector,p2.map);
-			deck->permutationShuffle(deck->deckVector,p3.map);
-			//			deck->permutationShuffle(deck->deckVector,p4.map);
-			deck->permutationShuffle(deck->deckVector,p1.map);
-			deck->permutationShuffle(deck->deckVector,p2.map);
-			deck->permutationShuffle(deck->deckVector,p3.map);
-			//			deck->permutationShuffle(deck->deckVector,p4.map);
+			cout << "----------------Begin-------------- \n";
 
-			for(auto i = deck->deckVector.begin(); i != deck->deckVector.end(); i++){
-				cout << (*i)<< std::endl;
-			}
+			CipherText ct = deck->deckVector.at(1);
+
+			ct = deck->mask_elGamal_with_Secret_Key(deck->pk, ct, NULL);
+
+			cout << "----------------After Mask-------------- \n";
+			std::cout << ct << std::endl;
+			ct = deck->unmask_elGamal_with_SecretKey(deck->pk, ct);
+			//				ct = deck->finalize_unmask_elGamal(deck->pk, ct);
+
+			cout << "----------------After Unmask-------------- \n";
+
+			std::cout << ct << std::endl;
+
+
 
 		}
 		else if (controllerInput == 8) {

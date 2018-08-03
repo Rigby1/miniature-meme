@@ -111,11 +111,12 @@ CipherText DeckAndOperations::mask_elGamal_with_Secret_Key(const Public_Key &pk,
 	mpz_class g_to_r;
 	mpz_class y_to_r;
 
-	mpz_class y(Secret_Key);
+	mpz_class y;
 	if(Secret_Key == 0 || Secret_Key == NULL) { // This is for single player runs
 		Secret_Key = secretRandomR(pk.p);
-		y = Secret_Key;
 	}
+	mpz_powm(y.get_mpz_t(),pk.g.get_mpz_t(),Secret_Key.get_mpz_t(),pk.p.get_mpz_t());
+
 	//mpz_powm((y).get_mpz_t(),(pk.g).get_mpz_t(),Secret_Key.get_mpz_t(),(pk.p).get_mpz_t());
 
 
@@ -134,7 +135,16 @@ CipherText DeckAndOperations::mask_elGamal_with_Secret_Key(const Public_Key &pk,
 	return CipherText(ct.c_1 * g_to_r % pk.p, ct.c_2 * y_to_r % pk.p);
 }
 
+CipherText DeckAndOperations::unmask_elGamal_with_SecretKey(const Public_Key &pk, const CipherText &ct){
 
+	mpz_class unmasked;
+
+	mpz_powm(unmasked.get_mpz_t(),ct.c_1.get_mpz_t(),Secret_Key.get_mpz_t(),pk.p.get_mpz_t());
+	mpz_class unmaskedInverted;
+	mpz_invert(unmaskedInverted.get_mpz_t(),unmasked.get_mpz_t(),pk.p.get_mpz_t());
+
+	return CipherText(unmaskedInverted * ct.c_2 % pk.p);
+}
 
 
 
@@ -151,16 +161,7 @@ CipherText DeckAndOperations::unmask_elGamal(const Public_Key &pk, const CipherT
 
 	return CipherText(unmasked, ct.c_2);
 }
-//CipherText DeckAndOperations::unmask_elGamal_Special(const Public_Key &pk, const CipherText &ct){
-//
-//	mpz_class unmasked;
-//
-//	mpz_powm(unmasked.get_mpz_t(),ct.c_1.get_mpz_t(),Shared_Public_Key.get_mpz_t(),pk.p.get_mpz_t());
-//	mpz_class unmaskedInverted;
-//	mpz_invert(unmaskedInverted.get_mpz_t(),unmasked.get_mpz_t(),pk.p.get_mpz_t());
-//
-//	return CipherText(unmaskedInverted, ct.c_2);
-//}
+
 
 CipherText DeckAndOperations::finalize_unmask_elGamal(const Public_Key &pk, const CipherText &ct){
 
