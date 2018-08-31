@@ -106,30 +106,6 @@ public:
 			randomize();
 		}
 	}
-	void makePi() {
-			map.clear();
-			map.push_back(3);
-			map.push_back(0);
-			map.push_back(2);
-			map.push_back(1);
-			updateRmap();
-		}
-	void makePiPrime() {
-		map.clear();
-		map.push_back(0);
-		map.push_back(1);
-		map.push_back(3);
-		map.push_back(2);
-		updateRmap();
-	}
-	void makePiDoublePrime() {
-		map.clear();
-		map.push_back(3);
-		map.push_back(0);
-		map.push_back(1);
-		map.push_back(2);
-		updateRmap();
-	}
 
 	void randomize() {
 		for (size_t i=0; i<map.size()-1; i++) {

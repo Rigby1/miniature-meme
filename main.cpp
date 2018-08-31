@@ -1177,7 +1177,6 @@ int main(int argc, char** argv) {
 
 				vector<CipherText> c = deck->deckVector;
 				PermutationClass  pi(deck->deckVector.size());
-				//				pi.makePi();
 
 				vector<CipherText> cDoublePrime = c;
 				deck->permutationShuffle(cDoublePrime, pi.map);
@@ -1189,7 +1188,6 @@ int main(int argc, char** argv) {
 				vector<CipherText> cPrime = c;
 				vector<mpz_class>  rPrime = deck->generateSecretRandomRVector(deck->pk.p, cPrime.size());;
 				PermutationClass  piPrime(cPrime.size());
-				//				piPrime.makePiPrime();
 				deck->permutationShuffle(cPrime,piPrime.map);
 				deck->re_mask_elGamal_deck(deck->pk, cPrime, rPrime);
 
