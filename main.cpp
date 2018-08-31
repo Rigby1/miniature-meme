@@ -33,7 +33,7 @@
 
 
 using boost::asio::ip::tcp;
-std::string outGoingConnection;
+std::string outGoingConnectionIPAdress, outGoingConnectionPortNo;
 bool readySent = false;
 bool sharedPKSent = false;
 bool isInitiator = false;
@@ -931,11 +931,7 @@ public:
 	}
 
 	void client_handle_connect_timer(){
-		//		cout << "Enter port number to connect: ";
-		//		string portNo;
-		//		cin >> portNo;
-		//		cout << "Resolving " << portNoGlobal << std::endl;
-		tcp::resolver::query query("localhost", outGoingConnection);
+		tcp::resolver::query query(outGoingConnectionIPAdress, outGoingConnectionPortNo);
 		client_resolver.async_resolve(query,
 				boost::bind(&game_session::client_handle_resolve, shared_from_this(),
 						boost::asio::placeholders::error,
@@ -1108,8 +1104,10 @@ int main(int argc, char** argv) {
 	int incomingConnection;
 	cin >> incomingConnection;
 
+	cout << "Enter IP number to connect: ";
+	cin >> outGoingConnectionIPAdress;
 	cout << "Enter port number to connect: ";
-	cin >> outGoingConnection;
+	cin >> outGoingConnectionPortNo;
 
 
 	tcp::endpoint endpoint(tcp::v4(), incomingConnection);
@@ -1125,12 +1123,13 @@ int main(int argc, char** argv) {
 	cout<<"\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<endl;
 	cout<<"Press appropriate key:"<<endl;
 	cout<<"Press 1 to Shuffle with Multiple players."<<endl;
-	cout<<"Press 2 to Prove correct shuffling in between two nodes. " <<endl;
-	cout<<"Press 3 to Prove correct Re-Encryption in between two nodes. "<<endl;
+	cout<<"Press 2 to Prove correct masking and shuffling in between two nodes. " <<endl;
+	//	cout<<"Press 3 to Prove correct Re-Encryption in between two nodes. "<<endl;
 	cout<<"Press 4 to Prove correct Decryption in between two nodes. "<<endl;
 	cout<<"Press 5 to Correct Masking and Shuffling internally!. "<<endl;
 	cout<<"Press 6 to Shuffle then Unshuffle internally!. "<<endl;
 	cout<<"Press 7 to Mask then Unmask internally!. "<<endl;
+	cout<<"Press 10 to Prove correct Decryption internally!. "<<endl;
 
 
 
@@ -1155,12 +1154,12 @@ int main(int argc, char** argv) {
 
 		}
 
-		else if (controllerInput == 3) {
-			readySent = true;
-			isInitiator = true;
-			operationController = 3;
-			new_session->deliver_to_Server("ready",2);
-		}
+		//		else if (controllerInput == 3) {
+		//			readySent = true;
+		//			isInitiator = true;
+		//			operationController = 3;
+		//			new_session->deliver_to_Server("ready",2);
+		//		}
 
 		else if (controllerInput == 4) {
 			readySent = true;
@@ -1344,18 +1343,22 @@ int main(int argc, char** argv) {
 			deck->generateCardsAndPutIntoDeck();
 			cout << "----------------Begin-------------- \n";
 
-			CipherText ct = deck->deckVector.at(1);
+			for(size_t i = 0; i < deck->deckVector.size();i++){
+				CipherText ct = deck->deckVector.at(i);
+				ct = deck->mask_elGamal_with_Secret_Key(deck->pk, ct, NULL);
 
-			ct = deck->mask_elGamal_with_Secret_Key(deck->pk, ct, NULL);
+				cout << "----------------After Mask-------------- \n";
+				std::cout << ct << std::endl;
 
-			cout << "----------------After Mask-------------- \n";
-			std::cout << ct << std::endl;
-			ct = deck->unmask_elGamal_with_SecretKey(deck->pk, ct);
-			//				ct = deck->finalize_unmask_elGamal(deck->pk, ct);
+			}
 
-			cout << "----------------After Unmask-------------- \n";
-
-			std::cout << ct << std::endl;
+			for(size_t i = 0; i < deck->deckVector.size();i++){
+				CipherText ct = deck->deckVector.at(i);
+				ct = deck->unmask_elGamal_with_SecretKey(deck->pk, ct);
+				//							ct = deck->finalize_unmask_elGamal(deck->pk, ct);
+				cout << "----------------After Unmask-------------- \n";
+				std::cout << ct << std::endl;
+			}
 
 
 
