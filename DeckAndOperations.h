@@ -1,7 +1,7 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Master Thesis of O. Deniz Sengün
+ * Implementation of Mental Card Games using ElGamal Encryption scheme
+ *
  */
 
 /* 
@@ -19,7 +19,6 @@
 #include <random>
 #include <cstdint>
 #include <iostream>
-#include "CardClass.h"
 #include <map>
 #include <iterator>
 #include <boost/asio.hpp>
@@ -195,16 +194,10 @@ public:
 
 	vector<CipherText> re_mask_elGamal_deck(const Public_Key &pk, vector<CipherText> &vectorToRemasked, vector<mpz_class> &rp);
 	CipherText unmask_elGamal(const Public_Key &pk, const CipherText &ct);
-//	CipherText unmask_elGamal_Special(const Public_Key &pk, const CipherText &ct);
 
 	vector<CipherText> mask_elGamal_deck();
-//	vector<CipherText> mask_elGamal_masked_deck();
 	CipherText finalize_unmask_elGamal(const Public_Key &pk, const CipherText &ct);
 	CipherText unmask_elGamal_with_SecretKey(const Public_Key &pk, const CipherText &ct);
-//	void reversePermutationShuffle(PermutationClass *pClass);
-//	void reversePermutationShuffleForEncryptedVector(PermutationClass *pClass);
-//	void permutationShuffleForEncryptedVector(PermutationClass *pClass);
-	void transformCardClassVectorToMpzVector();
 	Public_Key pk;
 	vector<CipherText> deckVector;
 	PermutationClass * permutationClass;
@@ -217,9 +210,6 @@ public:
 
 private:
 	size_t randomNumber(size_t, size_t);
-	//    std::vector<uint8_t> toBinary(mpz_class input);
-	//    size_t bits(mpz_class input);
-	//    size_t bytes(mpz_class input);
 	mpz_t cardsMultiplied; // not necessary at the moment , for the future; in order to keep track of number of cards
 	int totalCardCount; // not necessary at the moment , for the future; in order to keep track of multiplication of the cards
 
